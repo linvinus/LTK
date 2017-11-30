@@ -43,6 +43,18 @@ int main (string[] argv) {
             screen.root_visual,
             Xcb.CW.OVERRIDE_REDIRECT | Xcb.CW.EVENT_MASK,
             mask);
+
+  /* set the title of the window */
+
+  string title = "Hello World !";
+  c.change_property_uint8  ( Xcb.PropMode.REPLACE,
+                       window,
+                       Xcb.Atom.WM_NAME,
+                       Xcb.Atom.STRING,
+//~                        8,
+                       title.length,
+                       title );
+
   c.map_window(window);
 
   var visual = find_visual(c, screen.root_visual);
