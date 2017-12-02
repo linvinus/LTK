@@ -107,6 +107,7 @@ int main (string[] argv) {
         c.flush();
     }
     surface.finish();
+    FontLoader.destroy();
 //~     surface.destroy();
 //~     xcb_disconnect(c);
 
