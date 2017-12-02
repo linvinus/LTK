@@ -1,0 +1,26 @@
+extern class FT_Face {}
+extern class FT_Library {}
+
+extern int FT_Init_FreeType(out FT_Library alibrary );
+extern int FT_New_Face( FT_Library   library,
+                        string       filepathname,
+                        long         face_index,
+                        out FT_Face  aface );
+
+extern Cairo.FontFace cairo_ft_font_face_create_for_ft_face(FT_Face face, int load_flags);
+
+
+
+public class FontLoader {
+
+  public static Cairo.FontFace load(string path) throws Error {
+    FT_Library library;
+    FT_Face face;
+    FT_Init_FreeType(out library);
+    var error = FT_New_Face(library, path, 0, out face);
+    if (error != 0) throw new FileError.ACCES("");
+    return cairo_ft_font_face_create_for_ft_face(face, 0);
+  }
+
+}
+

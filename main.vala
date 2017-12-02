@@ -38,7 +38,7 @@ int main (string[] argv) {
   var screen = s_iterator.data;
   var window = c.generate_id();
   c.create_window(Xcb.COPY_FROM_PARENT, window, screen.root,
-            20, 20, 150, 150, 20,
+            20, 20, 800, 600, 2,
             Xcb.WindowClass.INPUT_OUTPUT,
             screen.root_visual,
             Xcb.CW.OVERRIDE_REDIRECT | Xcb.CW.EVENT_MASK,
@@ -64,9 +64,13 @@ int main (string[] argv) {
       return 1;
   }
 
-    var surface = new Cairo.XcbSurface(c, window, visual, 150, 150);
+    var surface = new Cairo.XcbSurface(c, window, visual, 800, 600);
     Cairo.Context cr = new Cairo.Context(surface);
     c.flush();
+    var F = FontLoader.load("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
+    cr.set_font_face(F);
+    cr.set_font_size (14);
+    string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
 
     Xcb.GenericEvent event;
     while ( (event = c.wait_for_event()) != null ) {
@@ -94,7 +98,8 @@ int main (string[] argv) {
             cr.move_to(0, 150);
             cr.line_to(150, 0);
             cr.stroke();
-
+	    cr.move_to( 2, 150);
+	    cr.show_text( text);
             surface.flush();
             break;
         }
