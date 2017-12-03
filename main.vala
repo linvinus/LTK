@@ -38,15 +38,15 @@ int main (string[] argv) {
   var screen = s_iterator.data;
   var window = c.generate_id();
   c.create_window(Xcb.COPY_FROM_PARENT, window, screen.root,
-            20, 20, 800, 600, 2,
+            20, 20, 800, 600, 0,
             Xcb.WindowClass.INPUT_OUTPUT,
             screen.root_visual,
-            Xcb.CW.OVERRIDE_REDIRECT | Xcb.CW.EVENT_MASK,
+            /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXEL| Xcb.CW.EVENT_MASK,
             mask);
 
   /* set the title of the window */
 
-  string title = "Hello World !";
+  string title = "xcb_vala";
   c.change_property_uint8  ( Xcb.PropMode.REPLACE,
                        window,
                        Xcb.Atom.WM_NAME,
@@ -54,6 +54,28 @@ int main (string[] argv) {
 //~                        8,
                        title.length,
                        title );
+
+  var I = Xcb.Icccm.new(c);
+
+  var hints =  new Xcb.Icccm.WmHints ();
+  Xcb.Icccm.wm_hints_set_normal(ref hints);
+  I.set_wm_hints(window, hints);
+
+  var size_hints = new Xcb.Icccm.SizeHints();
+//~   Xcb.Icccm.SizeHints size_hints;
+  size_hints.flags=(Xcb.Icccm.SizeHint.US_SIZE|Xcb.Icccm.SizeHint.P_SIZE);
+  size_hints.height=size_hints.base_height=60;
+  size_hints.width=size_hints.base_width=60;
+  I.set_wm_normal_hints(window, size_hints);
+
+  Xcb.AtomT[] atoms={};
+  var deleteWindowAtom = c.intern_atom_reply(c.intern_atom(true,"WM_DELETE_WINDOW")).atom;
+  atoms += deleteWindowAtom;
+  atoms += c.intern_atom_reply(c.intern_atom(true,"WM_TAKE_FOCUS")).atom;
+  atoms += c.intern_atom_reply(c.intern_atom(true,"_NET_WM_PING")).atom;
+  atoms += c.intern_atom_reply(c.intern_atom(true,"_NET_WM_SYNC_REQUEST")).atom;
+  var wmprotocolsAtom = c.intern_atom_reply(c.intern_atom(true,"WM_PROTOCOLS")).atom;
+  I.set_wm_protocols(window,wmprotocolsAtom,atoms);
 
   c.map_window(window);
 
@@ -73,7 +95,8 @@ int main (string[] argv) {
     string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
 
     Xcb.GenericEvent event;
-    while ( (event = c.wait_for_event()) != null ) {
+    bool finished = false;
+    while (( (event = c.wait_for_event()) != null ) && !finished ) {
         switch (event.response_type & ~0x80) {
         case Xcb.EXPOSE:
             /* Avoid extra redraws by checking if this is
@@ -98,11 +121,18 @@ int main (string[] argv) {
             cr.move_to(0, 150);
             cr.line_to(150, 0);
             cr.stroke();
-	    cr.move_to( 2, 150);
-	    cr.show_text( text);
+            cr.move_to( 2, 150);
+            cr.show_text( text);
             surface.flush();
             break;
-        }
+        case Xcb.CLIENT_MESSAGE:
+            Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
+            if(e.data.data32[0] == deleteWindowAtom){
+                printf("done\n");
+                finished = true;
+            }
+            break;
+        }//switch
 //~         free(event);
         c.flush();
     }

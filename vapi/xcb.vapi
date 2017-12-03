@@ -148,7 +148,7 @@ namespace Xcb {
 
 		public VoidCookie configure_window (Window window, uint16 value_mask, uint32 *value_list);
 		public VoidCookie configure_window_checked (Window window, uint16 value_mask, uint32 *value_list);
-		
+
 		public VoidCookie reparent_window (Window window, Window parent, uint16 x, uint16 y);
 		public VoidCookie reparent_window_checked (Window window, Window parent, uint16 x, uint16 y);
 
@@ -1919,6 +1919,24 @@ namespace Xcb {
 		public Keycode first_keycode;
 		public uint8 count;
 	}
+
+		[SimpleType]
+		[CCode (cname = "xcb_client_message_data_t", has_type_id = false)]
+    public struct ClientMessageData{
+        uint8  data8[20]; /**<  */
+        uint16 data16[10]; /**<  */
+        uint32 data32[5]; /**<  */
+    }
+
+	[Compact]
+	[CCode (cname = "xcb_client_message_event_t", ref_function = "", unref_function = "")]
+  public class ClientMessageEvent : GenericEvent {
+      public uint16                  sequence; /**<  */
+      public Window              window; /**<  */
+      public AtomT                type; /**<  */
+      public ClientMessageData data; /**<  */
+  }
+
 
 	[CCode (cname = "xcb_cw_t", has_type_id = false)]
 	public enum CW {
