@@ -130,7 +130,7 @@ namespace Xcb {
 		 * @param conn The current Xcb connection
 		 * @return the new Icccm object
 		 */
-		public static Icccm new(Xcb.Connection conn) {
+		public static unowned Icccm new(Xcb.Connection conn) {
 			unowned Xcb.Icccm.Icccm retval = (Xcb.Icccm.Icccm)conn;
 			return retval;
 		}

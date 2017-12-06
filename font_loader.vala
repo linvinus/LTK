@@ -12,7 +12,7 @@ extern void FT_Done_Face (FT_Face face);
 
 
 public class FontLoader {
-    static FT_Face face;
+  static FT_Face face;
 
   public static Cairo.FontFace load(string path) throws Error {
     FT_Library library;
