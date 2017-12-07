@@ -42,7 +42,7 @@ endif
 VTE ?= $(shell pkg-config  --exists vte-2.91 && echo 2.91)
 VTE ?= $(shell pkg-config  --exists vte-2.90 && echo 2.90)
 
-VALA_FLAGS += --vapidir ./vapi  --pkg posix  --pkg glib-2.0 --pkg gio-2.0 --pkg gio-unix-2.0 --pkg xcb --pkg xcb-icccm --pkg cairo-xcb -X -lfreetype
+VALA_FLAGS += --vapidir ./vapi  --pkg gobject-2.0 --pkg posix  --pkg glib-2.0 --pkg gio-2.0 --pkg gio-unix-2.0 --pkg xcb --pkg xcb-icccm --pkg cairo-xcb -X -lfreetype
 #--pkg gdk-x11-3.0 --pkg cairo -X -lxkbcommon --pkg shm --pkg glib-2.0 --pkg gio-2.0 --pkg gio-unix-2.0
 #--pkg gtk+-3.0 --pkg gdk-x11-3.0 --pkg cairo --pkg posix --pkg gmodule-2.0
 

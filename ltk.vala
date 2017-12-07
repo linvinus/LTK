@@ -1,3 +1,21 @@
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301, USA.
+ * 
+ */
+
 
 private static Xcb.VisualType? find_visual(Xcb.Connection c, Xcb.VisualID visual)
 {
@@ -37,6 +55,27 @@ namespace Ltk{
     public static const string _net_wm_ping = "_NET_WM_PING";
     public static const string _net_wm_sync_request = "_NET_WM_SYNC_REQUEST";
   }
+
+/*  public struct FColor{
+    float a;
+    float r;
+    float g;
+    float b;
+  }
+
+  public enum StyleColor{
+    bg_color,
+    fg_color,
+    text_bg_color,
+    text_fg_color,
+    border_color
+  }
+  private FColor[] colors_internal={ {0,1,1,1},
+                                     {0,0,0,0},
+                                   };
+
+  private static GLib.List<Ltk.StyleColor,> style_colors;
+  */
   /********************************************************************/
   public class Widget : GLib.Object{
     public Widget? parent;
@@ -62,7 +101,7 @@ namespace Ltk{
       this.childs.remove(child);
     }
 
-    public bool draw(Cairo.Context cr){
+    public virtual bool draw(Cairo.Context cr){
       return true;//continue
     }//draw
   }
@@ -93,7 +132,7 @@ namespace Ltk{
           }
       }
     }
-    private string title;
+    private string? title = null;
 
 
     public Window(){
@@ -186,13 +225,15 @@ namespace Ltk{
 
 
     private void set_title_do(){
-      this.C.change_property_uint8  ( Xcb.PropMode.REPLACE,
-                           this.window,
-                           Xcb.Atom.WM_NAME,
-                           Xcb.Atom.STRING,
-    //~                        8,
-                           this.title.length,
-                           this.title );
+      if(this.title != null){
+        this.C.change_property_uint8  ( Xcb.PropMode.REPLACE,
+                             this.window,
+                             Xcb.Atom.WM_NAME,
+                             Xcb.Atom.STRING,
+      //~                        8,
+                             this.title.length,
+                             this.title );
+      }
     }//set_title_do
 
     public void set_title(string title){
@@ -223,6 +264,7 @@ namespace Ltk{
 
       this.width=width;
       this.height=height;
+      this.configure_window_do();
 //~       if(this.state == WindowState.visible){
 //~         this.surface.set_size((int)this.width,(int)this.height);
 //~       }
@@ -234,28 +276,41 @@ namespace Ltk{
       this.cr.set_font_size (size);
     }
 
-    public bool draw(Cairo.Context cr){
+    public override bool draw(Cairo.Context cr){
       string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
+      cr.save();
+        cr.set_source_rgb(0, 1, 0);
+        cr.paint();
 
-      cr.set_source_rgb(0, 1, 0);
-      cr.paint();
+        cr.set_source_rgb(1, 0, 0);
+        cr.move_to(0, 0);
+        cr.line_to(this.width, 0);
+        cr.line_to(this.width, this.height);
+        cr.close_path();
+        cr.fill();
 
-      cr.set_source_rgb(1, 0, 0);
-      cr.move_to(0, 0);
-      cr.line_to(this.width, 0);
-      cr.line_to(this.width, this.height);
-      cr.close_path();
-      cr.fill();
-
-      cr.set_source_rgb(0, 0, 1);
-      cr.set_line_width(20);
-      cr.move_to(0, this.height);
-      cr.line_to(this.width, 0);
-      cr.stroke();
-      cr.move_to( 2, this.height-10);
-      cr.show_text( text);
-      surface.flush();
+        cr.set_source_rgb(0, 0, 1);
+        cr.set_line_width(20);
+        cr.move_to(0, this.height);
+        cr.line_to(this.width, 0);
+        cr.stroke();
+        cr.move_to( 2, this.height-10);
+        cr.show_text( text);
+        cr.stroke ();
+      cr.restore();
+//~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
+      foreach(var w in this.childs){
+        cr.save();
+//~           GLib.stderr.printf( "childs draw %d\n",(int)w.width);
+//~           cr.move_to ();
+          cr.translate ((this.width-w.width)/2,(this.height-w.height)/2);
+          cr.rectangle (0, 0,w.width/*+border.left+border.right*/, w.height/*+border.top+border.bottom*/);
+          cr.clip ();
+          w.draw(cr);
+        cr.restore();
+      }
       return base.draw(cr);
+      surface.flush();
     }//draw
 
   public void on_configure(Xcb.ConfigureNotifyEvent e){
@@ -320,4 +375,28 @@ namespace Ltk{
 
 
   /********************************************************************/
+
+  public class Button: Widget{
+    public string? label = null;
+    public Button(string? label = null){
+      base();
+      this.label = label;
+      this.width = 50;
+      this.height = 50;
+    }
+    public override bool draw(Cairo.Context cr){
+      GLib.stderr.printf( "Button draw %s\n",this.get_class().get_name());
+      cr.set_source_rgb(0.5, 1, 0.5);
+         cr.rectangle (this.x, this.y,this.width/*+border.left+border.right*/, this.height/*+border.top+border.bottom*/);
+         cr.fill ();
+         if(this.label != null){
+          cr.set_source_rgb(1, 1, 0);
+          cr.move_to(0,this.height/2);
+          cr.show_text(this.label);
+          }
+         cr.stroke ();
+//~       cr.paint();
+      return true;//continue
+    }//draw    
+  }
 }//namespace Ltk
