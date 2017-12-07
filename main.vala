@@ -28,8 +28,19 @@ int main (string[] argv) {
     window.load_font_with_size("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",14);
     window.show();
 
-    var button = new Ltk.Button("Проверка :)))");
-    window.add(button);
+    var container = new Ltk.Container();
+    container.size_policy = Ltk.SizePolicy.vertical;
+    container.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+    var button = new Ltk.Button("1Проверка :)))");
+    container.add(button);
+    button.width=300;
+    button = new Ltk.Button("2Проверка :)))");
+    container.add(button);
+    button.height=200;
+    button.width=200;
+    button = new Ltk.Button("3Проверка :)))");
+    container.add(button);
+    window.add(container);
 
     window.run();
 

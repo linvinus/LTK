@@ -45,6 +45,18 @@ namespace Ltk{
     hidden,
     visible
   }
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public enum ContainerFillPolicy{
+    fill_width=1,
+    fill_height=2
+  }
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public enum SizePolicy{
+    horizontal=1,
+    vertical=2
+  }
   /*[SimpleType]*/
   [CCode (has_type_id = false)]
   struct atom_names{
@@ -54,6 +66,14 @@ namespace Ltk{
     public static const string wm_protocols = "WM_PROTOCOLS";
     public static const string _net_wm_ping = "_NET_WM_PING";
     public static const string _net_wm_sync_request = "_NET_WM_SYNC_REQUEST";
+  }
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public struct Allocation{
+    uint x;
+    uint y;
+    uint w;
+    uint h;
   }
 
 /*  public struct FColor{
@@ -86,6 +106,9 @@ namespace Ltk{
     public uint height;
     public uint x;
     public uint y;
+    public Allocation A;
+    public ContainerFillPolicy fill_mask = 0;
+    public SizePolicy size_policy = SizePolicy.horizontal;
 
     public virtual uint get_prefered_width(){
       return this.width;
@@ -102,13 +125,22 @@ namespace Ltk{
     }//create
 
     public virtual bool draw(Cairo.Context cr){
+        cr.save();
+        cr.set_line_width(2);
+        cr.set_source_rgb(0, 0, 0);
+        cr.rectangle (this.x, this.y, this.width, this.height);
+        cr.stroke ();
+        cr.restore();
       return true;//continue
     }//draw
   }
   /********************************************************************/
   public class Container: Widget{
     private bool _calculating_size = false;
-
+    public Container(){
+      base();
+      this.fill_mask = ContainerFillPolicy.fill_height|ContainerFillPolicy.fill_width;
+    }
     public void add(Widget child){
       child.parent = this;
       this.childs.append(child);
@@ -120,14 +152,33 @@ namespace Ltk{
       this.calculate_size();
     }
 
+    public override uint get_prefered_width(){
+      int h = -1;
+      uint wmin,wmax;
+      this.get_width_for_height(h,out wmin,out wmax);
+      return (this.size_policy == SizePolicy.horizontal? wmax : wmin);
+    }
+    public override uint get_prefered_height(){
+      int w = -1;
+      uint hmin,hmax;
+      this.get_height_for_width(w,out hmin,out hmax);
+      return (this.size_policy == SizePolicy.vertical? hmax : hmin);
+    }
+
     public virtual void get_height_for_width(int width,out uint height_min,out uint height_max){
+      uint _h;
       foreach(var w in this.childs){
-        height_max = height_min = uint.max(height_min, w.get_prefered_height());
+        _h = w.get_prefered_height();
+        height_max += _h;
+        height_min = uint.max(height_min, _h);
       }
     }
     public virtual void get_width_for_height(int height,out uint width_min,out uint width_max){
+      uint _w;
       foreach(var w in this.childs){
-        width_max = width_min = uint.max(width_min,w.get_prefered_width());
+        _w = w.get_prefered_width();
+        width_max += _w;
+        width_min = uint.max(width_min,_w);
       }
     }
     public virtual void calculate_size(){
@@ -140,21 +191,36 @@ namespace Ltk{
       this._calculating_size=true;
         this.get_height_for_width(w,out hmin,out hmax);
         this.get_width_for_height(h,out wmin,out wmax);
-        this.width = wmin;
+        this.width = wmax;
         this.height = hmin;
       this._calculating_size=false;
     }
     public override bool draw(Cairo.Context cr){
+        uint len = this.childs.length();
+        uint _x = 0, _y = 0, _w = 0, _h = 0;
+        cr.save();
+        cr.set_line_width(2);
+        cr.set_source_rgb(1, 0, 0);
+        cr.rectangle (this.x, this.y, this.width, this.height);
+        cr.stroke ();
+        cr.restore();
         foreach(var w in this.childs){
           cr.save();
   //~           GLib.stderr.printf( "childs draw %d\n",(int)w.width);
   //~           cr.move_to ();
-            cr.translate ((this.width-w.width)/2,(this.height-w.height)/2);
+            if(this.size_policy == SizePolicy.horizontal){
+              cr.translate (_x,(this.height-w.height)/2);
+              _x+=w.width;
+            }else{
+              cr.translate ((this.width-w.width)/2,_y);
+              _y+=w.height;
+            }
             cr.rectangle (0, 0,w.width/*+border.left+border.right*/, w.height/*+border.top+border.bottom*/);
             cr.clip ();
             w.draw(cr);
           cr.restore();
-        }
+
+        }//foreach
         return base.draw(cr);
       }
   }//class container
@@ -189,6 +255,8 @@ namespace Ltk{
       }
     }
     private string? title = null;
+    private int pos_x = 0;
+    private int pos_y = 0;
 
 
     public Window(){
@@ -219,7 +287,7 @@ namespace Ltk{
       mask[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
 
       this.C.create_window(Xcb.COPY_FROM_PARENT, this.window, this.screen.root,
-                (int16)this.x, (int16)this.y, (uint16)this.width, (uint16)this.height, 0,
+                (int16)this.pos_x, (int16)this.pos_y, (uint16)this.width, (uint16)this.height, 0,
                 Xcb.WindowClass.INPUT_OUTPUT,
                 this.screen.root_visual,
                 /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXEL| Xcb.CW.EVENT_MASK,
@@ -316,7 +384,7 @@ namespace Ltk{
     }*/
 
     private void configure_window_do(){
-      uint32 position[] = { this.x, this.y, this.width, this.height };
+      uint32 position[] = { this.pos_x, this.pos_y, this.width, this.height };
       this.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
     }
 
@@ -381,8 +449,8 @@ namespace Ltk{
     if( (e.width == 1 && e.height == 1) && (this.width != 1 && this.height != 1))
       return;//skip first map
 
-    this.x = e.x;
-    this.y = e.y;
+    this.pos_x = e.x;
+    this.pos_y = e.y;
     if(this.width != e.width || this.height != e.height){
       this.width  = e.width;
       this.height = e.height;
@@ -444,11 +512,19 @@ namespace Ltk{
       base.calculate_size();
       GLib.stderr.printf( "2 w=%u h=%u\n", this.width,this.height);
 
-      if(this.height > oldh || this.width > oldh){
+      if(this.height > oldh || this.width > oldw){
         force_resize=true;
       }
       this.height = uint.max(this.height, oldh);
       this.width = uint.max(this.width, oldw);
+
+      if( (this.fill_mask & ContainerFillPolicy.fill_height) >0 ){
+        this.childs.first ().data.height = this.height;
+      }
+
+      if( (this.fill_mask & ContainerFillPolicy.fill_width) >0 ){
+        this.childs.first ().data.width = this.width;
+      }
 
       if(force_resize && this.state == WindowState.visible){
         GLib.stderr.printf( "3 w=%u h=%u\n", this.width,this.height);
@@ -482,6 +558,7 @@ namespace Ltk{
           cr.show_text(this.label);
           }
          cr.stroke ();
+      base.draw(cr);
 //~       cr.paint();
       return true;//continue
     }//draw
