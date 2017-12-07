@@ -30,10 +30,6 @@ private static Xcb.VisualType? find_visual(Xcb.Connection c, Xcb.VisualID visual
                if (v.visual_id == visual)
                 return v;
             }
-//~             Xcb.VisualTypeIterator visual_iter = depth.visuals_iterator();
-//~             for (; visual_iter.rem; xcb_visualtype_next(&visual_iter))
-//~                 if (visual == visual_iter.data->visual_id)
-//~                     return visual_iter.data;
         }
     }
 
@@ -85,6 +81,13 @@ namespace Ltk{
     public uint x;
     public uint y;
 
+    public virtual uint get_prefered_width(){
+      return this.width;
+    }
+    public virtual uint get_prefered_height(){
+      return this.height;
+    }
+    
     public Widget(Widget? parent = null){
       GLib.Object();
       this.x = this.y = 0;
@@ -106,7 +109,47 @@ namespace Ltk{
     }//draw
   }
   /********************************************************************/
-  public class Window: Widget{
+  public class Container: Widget{
+  private bool _calculating_size = false;
+  public virtual void get_height_for_width(int width,out uint height_min,out uint height_max){
+    foreach(var w in this.childs){
+      height_max = height_min = uint.max(height_min, w.get_prefered_height());
+    }
+  }
+  public virtual void get_width_for_height(int height,out uint width_min,out uint width_max){
+    foreach(var w in this.childs){
+      width_max = width_min = uint.max(width_min,w.get_prefered_width());
+    }
+  }
+  public virtual void calculate_size(){
+    if(this._calculating_size)
+      return;
+    int w = -1;
+    int h = -1;
+    uint hmin,hmax,wmin,wmax;
+    this._calculating_size=true;
+      this.get_height_for_width(w,out hmin,out hmax);
+      this.get_width_for_height(h,out wmin,out wmax);
+      this.width = wmin;
+      this.height = hmin;
+    this._calculating_size=false;
+  }
+  public override bool draw(Cairo.Context cr){
+      foreach(var w in this.childs){
+        cr.save();
+//~           GLib.stderr.printf( "childs draw %d\n",(int)w.width);
+//~           cr.move_to ();
+          cr.translate ((this.width-w.width)/2,(this.height-w.height)/2);
+          cr.rectangle (0, 0,w.width/*+border.left+border.right*/, w.height/*+border.top+border.bottom*/);
+          cr.clip ();
+          w.draw(cr);
+        cr.restore();
+      }
+      return base.draw(cr);
+    }
+  }
+  /********************************************************************/
+  public class Window: Container{
     public  Xcb.Connection C;
     private Xcb.Setup setup;
     private unowned Xcb.Icccm.Icccm I;
@@ -264,6 +307,7 @@ namespace Ltk{
 
       this.width=width;
       this.height=height;
+      this.calculate_size();
       this.configure_window_do();
 //~       if(this.state == WindowState.visible){
 //~         this.surface.set_size((int)this.width,(int)this.height);
@@ -299,16 +343,6 @@ namespace Ltk{
         cr.stroke ();
       cr.restore();
 //~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
-      foreach(var w in this.childs){
-        cr.save();
-//~           GLib.stderr.printf( "childs draw %d\n",(int)w.width);
-//~           cr.move_to ();
-          cr.translate ((this.width-w.width)/2,(this.height-w.height)/2);
-          cr.rectangle (0, 0,w.width/*+border.left+border.right*/, w.height/*+border.top+border.bottom*/);
-          cr.clip ();
-          w.draw(cr);
-        cr.restore();
-      }
       return base.draw(cr);
       surface.flush();
     }//draw
@@ -330,6 +364,7 @@ namespace Ltk{
     this.y = e.y;
     this.width = e.width;
     this.height = e.height;
+    this.calculate_size();
 //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.width,(int)this.height);
     this.surface.set_size((int)this.width,(int)this.height);
   }
@@ -368,8 +403,17 @@ namespace Ltk{
 //~         free(event);
         this.C.flush();
     }
-
   }//run
+
+    public override void calculate_size(){
+      uint oldw = this.width;
+      uint oldh = this.height;
+      GLib.stderr.printf( "calculate_size w=%u h=%u\n", this.width,this.height);
+      base.calculate_size();
+      GLib.stderr.printf( "calculate_size w=%u h=%u\n", this.width,this.height);
+      if(this.height < oldh) this.height = oldh;
+      if(this.width < oldw)  this.width = oldw;
+    }
 
   }//class Window
 
