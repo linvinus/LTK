@@ -3,17 +3,17 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
- * 
+ *
  */
 
 
@@ -38,11 +38,15 @@ private static Xcb.VisualType? find_visual(Xcb.Connection c, Xcb.VisualID visual
 
 
 namespace Ltk{
+  [SimpleType]
+  [CCode (has_type_id = false)]
   public enum WindowState{
     unconfigured,
     hidden,
     visible
   }
+  /*[SimpleType]*/
+  [CCode (has_type_id = false)]
   struct atom_names{
     private static int linvinus = 1;
     public static const string wm_delete_window = "WM_DELETE_WINDOW";
@@ -59,6 +63,8 @@ namespace Ltk{
     float b;
   }
 
+  [SimpleType]
+  [CCode (has_type_id = false)]
   public enum StyleColor{
     bg_color,
     fg_color,
@@ -87,7 +93,7 @@ namespace Ltk{
     public virtual uint get_prefered_height(){
       return this.height;
     }
-    
+
     public Widget(Widget? parent = null){
       GLib.Object();
       this.x = this.y = 0;
@@ -95,61 +101,66 @@ namespace Ltk{
         this.parent = parent;
     }//create
 
-    public void add(Widget child){
-      child.parent = this;
-      this.childs.append(child);
-    }
-
-    public void remove(Widget child){
-      this.childs.remove(child);
-    }
-
     public virtual bool draw(Cairo.Context cr){
       return true;//continue
     }//draw
   }
   /********************************************************************/
   public class Container: Widget{
-  private bool _calculating_size = false;
-  public virtual void get_height_for_width(int width,out uint height_min,out uint height_max){
-    foreach(var w in this.childs){
-      height_max = height_min = uint.max(height_min, w.get_prefered_height());
+    private bool _calculating_size = false;
+
+    public void add(Widget child){
+      child.parent = this;
+      this.childs.append(child);
+      this.calculate_size();
     }
-  }
-  public virtual void get_width_for_height(int height,out uint width_min,out uint width_max){
-    foreach(var w in this.childs){
-      width_max = width_min = uint.max(width_min,w.get_prefered_width());
+
+    public void remove(Widget child){
+      this.childs.remove(child);
+      this.calculate_size();
     }
-  }
-  public virtual void calculate_size(){
-    if(this._calculating_size)
-      return;
-    int w = -1;
-    int h = -1;
-    uint hmin,hmax,wmin,wmax;
-    this._calculating_size=true;
-      this.get_height_for_width(w,out hmin,out hmax);
-      this.get_width_for_height(h,out wmin,out wmax);
-      this.width = wmin;
-      this.height = hmin;
-    this._calculating_size=false;
-  }
-  public override bool draw(Cairo.Context cr){
+
+    public virtual void get_height_for_width(int width,out uint height_min,out uint height_max){
       foreach(var w in this.childs){
-        cr.save();
-//~           GLib.stderr.printf( "childs draw %d\n",(int)w.width);
-//~           cr.move_to ();
-          cr.translate ((this.width-w.width)/2,(this.height-w.height)/2);
-          cr.rectangle (0, 0,w.width/*+border.left+border.right*/, w.height/*+border.top+border.bottom*/);
-          cr.clip ();
-          w.draw(cr);
-        cr.restore();
+        height_max = height_min = uint.max(height_min, w.get_prefered_height());
       }
-      return base.draw(cr);
     }
-  }
+    public virtual void get_width_for_height(int height,out uint width_min,out uint width_max){
+      foreach(var w in this.childs){
+        width_max = width_min = uint.max(width_min,w.get_prefered_width());
+      }
+    }
+    public virtual void calculate_size(){
+      GLib.stderr.printf( "calculate_size w=%u h=%u loop=%d\n", this.width,this.height,(int)this._calculating_size);
+      if(this._calculating_size)
+        return;
+      int w = -1;
+      int h = -1;
+      uint hmin,hmax,wmin,wmax;
+      this._calculating_size=true;
+        this.get_height_for_width(w,out hmin,out hmax);
+        this.get_width_for_height(h,out wmin,out wmax);
+        this.width = wmin;
+        this.height = hmin;
+      this._calculating_size=false;
+    }
+    public override bool draw(Cairo.Context cr){
+        foreach(var w in this.childs){
+          cr.save();
+  //~           GLib.stderr.printf( "childs draw %d\n",(int)w.width);
+  //~           cr.move_to ();
+            cr.translate ((this.width-w.width)/2,(this.height-w.height)/2);
+            cr.rectangle (0, 0,w.width/*+border.left+border.right*/, w.height/*+border.top+border.bottom*/);
+            cr.clip ();
+            w.draw(cr);
+          cr.restore();
+        }
+        return base.draw(cr);
+      }
+  }//class container
   /********************************************************************/
   public class Window: Container{
+    private bool _calculating_size = false;
     public  Xcb.Connection C;
     private Xcb.Setup setup;
     private unowned Xcb.Icccm.Icccm I;
@@ -162,17 +173,19 @@ namespace Ltk{
     private WindowState state{
       get { return _wState;}
       set {
-        if(_wState != value)
+        if(_wState != value){
           if(value == WindowState.visible ){
             _wState = value;
             this.show_do();
             this.set_title_do();
 //~             this.set_size_do();
             this.configure_window_do();
+            this.C.flush();
           }else if(value == WindowState.hidden ){ //WindowState.unconfigured is ignored
             _wState = value;
             //this.hide_do();
           }
+        }
       }
     }
     private string? title = null;
@@ -181,8 +194,8 @@ namespace Ltk{
     public Window(){
 
       base();
+      this.width=this.height=1;
 
-      uint32 mask[2];
       this.state = WindowState.unconfigured;
       this.atoms = new HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
 
@@ -196,20 +209,23 @@ namespace Ltk{
 
       this.I = Xcb.Icccm.new(this.C);
 
-      mask[0] = 1;
-      mask[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
-
       this.setup = this.C.get_setup();
       var s_iterator = this.setup.roots_iterator();
       this.screen = s_iterator.data;
       this.window = this.C.generate_id();
 
+      uint32 mask[2];
+      mask[0] = 1;
+      mask[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
+
       this.C.create_window(Xcb.COPY_FROM_PARENT, this.window, this.screen.root,
-                20, 20, 10, 10, 0,
+                (int16)this.x, (int16)this.y, (uint16)this.width, (uint16)this.height, 0,
                 Xcb.WindowClass.INPUT_OUTPUT,
                 this.screen.root_visual,
                 /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXEL| Xcb.CW.EVENT_MASK,
                 mask);
+
+
 
       var hints =  new Xcb.Icccm.WmHints ();
       Xcb.Icccm.wm_hints_set_normal(ref hints);
@@ -251,15 +267,16 @@ namespace Ltk{
           return;
       }
 
+
       this.surface = new Cairo.XcbSurface(this.C, this.window, visual, 10, 10);
       this.cr = new Cairo.Context(this.surface);
+
 
 //~       return base(null);
     }
 
     private void show_do(){
       this.C.map_window(this.window);
-      this.C.flush();
     }//show_do
 
     public void show(){
@@ -302,16 +319,17 @@ namespace Ltk{
       uint32 position[] = { this.x, this.y, this.width, this.height };
       this.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
     }
-    
+
     public void set_size(uint width,uint height){
 
       this.width=width;
       this.height=height;
-      this.calculate_size();
-      this.configure_window_do();
-//~       if(this.state == WindowState.visible){
-//~         this.surface.set_size((int)this.width,(int)this.height);
-//~       }
+//~       this.calculate_size();
+//~       this.configure_window_do();
+      if(this.state == WindowState.visible){
+        uint32 position[] = { this.width, this.height };
+        this.C.configure_window(this.window, ( Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+      }
     }
 
     public void load_font_with_size(string fpatch,uint size){
@@ -348,7 +366,7 @@ namespace Ltk{
     }//draw
 
   public void on_configure(Xcb.ConfigureNotifyEvent e){
-    
+
 //~     var geom = this.C.get_geometry_reply(this.C.get_geometry_unchecked(e.window), null);
 //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d\n",
 //~                       (int)e.x,
@@ -359,16 +377,24 @@ namespace Ltk{
 //~                       (int)e.event,
 //~                       (int)e.window
 //~                       );
-    
+
+    if( (e.width == 1 && e.height == 1) && (this.width != 1 && this.height != 1))
+      return;//skip first map
+
     this.x = e.x;
     this.y = e.y;
-    this.width = e.width;
-    this.height = e.height;
-    this.calculate_size();
-//~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.width,(int)this.height);
+    if(this.width != e.width || this.height != e.height){
+      this.width  = e.width;
+      this.height = e.height;
+      this.calculate_size();
+    }
+
     this.surface.set_size((int)this.width,(int)this.height);
+
+//~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.width,(int)this.height);
+
   }
-  
+
   public void run(){
     Xcb.GenericEvent event;
     bool finished = false;
@@ -406,14 +432,31 @@ namespace Ltk{
   }//run
 
     public override void calculate_size(){
+      GLib.stderr.printf( "window calculate_size w=%u h=%u loop=%d\n", this.width,this.height,(int)this._calculating_size);
+
+      if(this._calculating_size)
+        return;
+      this._calculating_size=true;
+      bool force_resize = false;
       uint oldw = this.width;
       uint oldh = this.height;
-      GLib.stderr.printf( "calculate_size w=%u h=%u\n", this.width,this.height);
+      GLib.stderr.printf( "1 w=%u h=%u\n", this.width,this.height);
       base.calculate_size();
-      GLib.stderr.printf( "calculate_size w=%u h=%u\n", this.width,this.height);
-      if(this.height < oldh) this.height = oldh;
-      if(this.width < oldw)  this.width = oldw;
-    }
+      GLib.stderr.printf( "2 w=%u h=%u\n", this.width,this.height);
+
+      if(this.height > oldh || this.width > oldh){
+        force_resize=true;
+      }
+      this.height = uint.max(this.height, oldh);
+      this.width = uint.max(this.width, oldw);
+
+      if(force_resize && this.state == WindowState.visible){
+        GLib.stderr.printf( "3 w=%u h=%u\n", this.width,this.height);
+        this.configure_window_do();
+      }
+
+      this._calculating_size=false;
+    }//calculate_size
 
   }//class Window
 
@@ -441,6 +484,6 @@ namespace Ltk{
          cr.stroke ();
 //~       cr.paint();
       return true;//continue
-    }//draw    
+    }//draw
   }
 }//namespace Ltk
