@@ -1,5 +1,11 @@
+http://man7.org/linux/man-pages/man3/cmsg.3.html
+https://cgit.freedesktop.org/wayland/weston/tree/clients/terminal.c
+https://github.com/UnickSoft/ex-sdl-freetype-harfbuzz-fribidi/blob/master/ex-sdl-freetype-harfbuzz.cpp
+
+XCB
+https://www.x.org/releases/X11R7.6/doc/libxcb/tutorial/index.html
+https://xcb.freedesktop.org/tutorial/events/
+https://xcb.freedesktop.org/manual/group__XCB____API.html
 https://github.com/HarveyHunt/howm
-https://tronche.com/gui/x/icccm/sec-4.html
 https://cgit.freedesktop.org/xcb/util-wm/tree/
-
-
+https://tronche.com/gui/x/icccm/sec-4.html
