@@ -182,7 +182,7 @@ namespace Ltk{
       }
     }
     public virtual void calculate_size(){
-      GLib.stderr.printf( "calculate_size w=%u h=%u loop=%d\n", this.width,this.height,(int)this._calculating_size);
+      GLib.stderr.printf( "container calculate_size w=%u h=%u loop=%d\n", this.width,this.height,(int)this._calculating_size);
       if(this._calculating_size)
         return;
       int w = -1;
@@ -191,8 +191,13 @@ namespace Ltk{
       this._calculating_size=true;
         this.get_height_for_width(w,out hmin,out hmax);
         this.get_width_for_height(h,out wmin,out wmax);
-        this.width = wmax;
-        this.height = hmin;
+        if(this.size_policy == SizePolicy.horizontal){
+          this.width = wmax;
+          this.height = hmin;
+        }else{
+          this.width = wmin;
+          this.height = hmax;
+        }
       this._calculating_size=false;
     }
     public override bool draw(Cairo.Context cr){
@@ -518,11 +523,11 @@ namespace Ltk{
       this.height = uint.max(this.height, oldh);
       this.width = uint.max(this.width, oldw);
 
-      if( (this.fill_mask & ContainerFillPolicy.fill_height) >0 ){
+      if( (this.fill_mask & ContainerFillPolicy.fill_height) >0 && this.childs.length() > 0){
         this.childs.first ().data.height = this.height;
       }
 
-      if( (this.fill_mask & ContainerFillPolicy.fill_width) >0 ){
+      if( (this.fill_mask & ContainerFillPolicy.fill_width) >0 && this.childs.length() > 0){
         this.childs.first ().data.width = this.width;
       }
 

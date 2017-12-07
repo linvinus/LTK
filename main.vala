@@ -30,7 +30,7 @@ int main (string[] argv) {
 
     var container = new Ltk.Container();
     container.size_policy = Ltk.SizePolicy.vertical;
-    container.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+    container.fill_mask |= Ltk.ContainerFillPolicy.fill_height;
     var button = new Ltk.Button("1Проверка :)))");
     container.add(button);
     button.width=300;
@@ -40,7 +40,22 @@ int main (string[] argv) {
     button.width=200;
     button = new Ltk.Button("3Проверка :)))");
     container.add(button);
-    window.add(container);
+
+    var container2 = new Ltk.Container();
+    container2.size_policy = Ltk.SizePolicy.horizontal;
+    container2.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+    button = new Ltk.Button("1Проверка :)))");
+    container2.add(button);
+    button.width=300;
+    container2.add(container);
+    button = new Ltk.Button("2Проверка :)))");
+    container2.add(button);
+    button.height=200;
+    button.width=200;
+    button = new Ltk.Button("3Проверка :)))");
+    container2.add(button);
+
+    window.add(container2);
 
     window.run();
 
