@@ -23,6 +23,8 @@ using Posix;
 int main (string[] argv) {
 
     var window = new Ltk.Window();
+    window.size_policy = Ltk.SizePolicy.horizontal;
+    window.fill_mask |= Ltk.ContainerFillPolicy.fill_height | Ltk.ContainerFillPolicy.fill_width;
     window.set_title("xcb_vala");
     window.set_size(800,600);
     window.load_font_with_size("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",14);
@@ -31,34 +33,36 @@ int main (string[] argv) {
     var container = new Ltk.Container();
     container.size_policy = Ltk.SizePolicy.vertical;
     container.fill_mask |= Ltk.ContainerFillPolicy.fill_height;
-    var button = new Ltk.Button("1Проверка :)))");
+    var button = new Ltk.Button("1Vertical :)))");
+    button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
     container.add(button);
     button.width=300;
-    button = new Ltk.Button("2Проверка :)))");
+    button = new Ltk.Button("2Vertical :)))");
+    button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
     container.add(button);
     button.height=200;
     button.width=200;
-    button = new Ltk.Button("3Проверка :)))");
-    container.add(button);
+//~     button = new Ltk.Button("3Vertical :)))");
+//~     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+//~     container.add(button);
 
     var container2 = new Ltk.Container();
     container2.size_policy = Ltk.SizePolicy.horizontal;
     container2.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
-    button = new Ltk.Button("1Проверка :)))");
+    button = new Ltk.Button("1horizontal :)))");
     container2.add(button);
     button.width=300;
     container2.add(container);
-    button = new Ltk.Button("2Проверка :)))");
+    button = new Ltk.Button("2horizontal :)))");
     container2.add(button);
     button.height=200;
     button.width=200;
-    button = new Ltk.Button("3Проверка :)))");
+    button = new Ltk.Button("3horizontal :)))");
     container2.add(button);
 
     window.add(container2);
 
     window.run();
-
 //~     surface.finish();
     FontLoader.destroy();
 //~     surface.destroy();
