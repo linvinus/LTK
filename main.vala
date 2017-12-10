@@ -26,9 +26,9 @@ int main (string[] argv) {
     window.size_policy = Ltk.SizePolicy.horizontal;
     window.fill_mask |= Ltk.ContainerFillPolicy.fill_height | Ltk.ContainerFillPolicy.fill_width;
     window.set_title("xcb_vala");
-    window.set_size(800,600);
+//~     window.set_size(800,600);
     window.load_font_with_size("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",14);
-    window.show();
+//~     window.show();
 
     var container = new Ltk.Container();
     container.size_policy = Ltk.SizePolicy.vertical;
@@ -36,32 +36,34 @@ int main (string[] argv) {
     var button = new Ltk.Button("1Vertical :)))");
     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
     container.add(button);
-    button.width=300;
+//~     button.width=300;
     button = new Ltk.Button("2Vertical :)))");
-    button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
-    container.add(button);
-    button.height=200;
-    button.width=200;
-//~     button = new Ltk.Button("3Vertical :)))");
 //~     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+    container.add(button);
+//~     button.height=200;
+//~     button.width=200;
+//~     button = new Ltk.Button("3Vertical :)))");
+//~     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width | Ltk.ContainerFillPolicy.fill_height;
 //~     container.add(button);
 
     var container2 = new Ltk.Container();
     container2.size_policy = Ltk.SizePolicy.horizontal;
     container2.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
     button = new Ltk.Button("1horizontal :)))");
+    button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
     container2.add(button);
-    button.width=300;
+//~     button.width=300;
     container2.add(container);
     button = new Ltk.Button("2horizontal :)))");
     container2.add(button);
-    button.height=200;
-    button.width=200;
+//~     button.height=200;
+//~     button.width=200;
     button = new Ltk.Button("3horizontal :)))");
     container2.add(button);
 
     window.add(container2);
 
+    window.show();
     window.run();
 //~     surface.finish();
     FontLoader.destroy();

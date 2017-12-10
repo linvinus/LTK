@@ -189,6 +189,20 @@ namespace Ltk{
         }
     }
 
+    public virtual void size_request(uint new_width, uint new_height){
+      if((new_width > this.width || new_height > this.height )  ){
+          Ltk.Widget? widget = this.parent;
+          while( widget != null){
+            if( widget is Ltk.Container ){
+              ((Ltk.Container)widget).size_request(new_width, new_height);
+              break;
+            }else{
+              widget = this.parent;
+            }
+          }
+        }
+    }
+
     public void add(Widget child){
       child.parent = this;
       this.childs.append(child);
@@ -197,8 +211,7 @@ namespace Ltk{
       uint oldw = this.width;
       uint oldh = this.height;
       this.calculate_size(ref oldw,ref oldh);
-//~       if(oldw > this.width || oldh > this.height)
-//~         this.parent.size_request(oldw, oldh);
+      this.size_request(oldw, oldh);
     }
 
     public void remove(Widget child){
@@ -248,7 +261,7 @@ namespace Ltk{
       }
     }
     public virtual void calculate_size(ref uint calc_width,ref uint calc_height){
-      GLib.stderr.printf( "container calculate_size w=%u h=%u loop=%d\n", this.width,this.height,(int)this._calculating_size);
+      GLib.stderr.printf( "container calculate_size w=%u h=%u loop=%d childs=%u\n", this.width,this.height,(int)this._calculating_size,this.childs.length());
       if(this._calculating_size)
         return;
       int _w = -1;
@@ -371,7 +384,7 @@ namespace Ltk{
         cr.save();
         cr.set_line_width(4);
         cr.set_source_rgb(1, 0, 0);
-        GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u\n",this.A.x, this.A.y, this.A.width, this.A.height);
+        GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.length());
         cr.rectangle (this.A.x, this.A.y, this.A.width, this.A.height);
         cr.stroke ();
         cr.restore();
@@ -560,14 +573,15 @@ namespace Ltk{
     }
 
     public void set_size(uint width,uint height){
-
-      this.width=width;
-      this.height=height;
 //~       this.calculate_size();
 //~       this.configure_window_do();
       if(this.state == WindowState.visible){
-        uint32 position[] = { this.width, this.height };
+        uint32 position[] = { width, height };
         this.C.configure_window(this.window, ( Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+      }else{
+        this.width=width;
+        this.height=height;
+//~         this.calculate_size_internal();
       }
     }
 
@@ -600,6 +614,8 @@ namespace Ltk{
         cr.stroke ();
       cr.restore();
 //~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
+      this.A.width = this.width;
+      this.A.height = this.height;
       return base.draw(cr);
       surface.flush();
     }//draw
@@ -616,7 +632,7 @@ namespace Ltk{
 //~                       (int)e.event,
 //~                       (int)e.window
 //~                       );
-
+//~     GLib.stderr.printf( "on_map2 w=%u h=%u \n", this.width,this.height);
     if( (e.width == 1 && e.height == 1) && (this.width != 1 && this.height != 1))
       return;//skip first map
 
@@ -712,7 +728,15 @@ namespace Ltk{
     }
 //~     public override void calculate_size(ref calc_width,ref calc_height){
 //~     }//calculate_size
-
+    public override void size_request(uint new_width, uint new_height){
+      uint _w = this.width, _h = this.height;
+      if( new_width > _w  )
+        _w = new_width;
+      if( new_height > _h)
+        _h = new_height;
+      GLib.stderr.printf( "window size_request=%u,%u\n", _w,_h);
+      this.set_size(_w,_h);
+    }
   }//class Window
 
 
