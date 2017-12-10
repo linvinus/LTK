@@ -45,6 +45,18 @@ int main (string[] argv) {
 //~     button = new Ltk.Button("3Vertical :)))");
 //~     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width | Ltk.ContainerFillPolicy.fill_height;
 //~     container.add(button);
+    bool tick = false;
+    GLib.Timeout.add(500,()=>{
+      GLib.stderr.printf("GLib.Timeout\n");
+//~       button.label += ""
+      if(!tick){
+        button.width += 100;
+      }else{
+        button.width -= 100;
+      }
+      tick = !tick;
+      return true;
+      });
 
     var container2 = new Ltk.Container();
     container2.size_policy = Ltk.SizePolicy.horizontal;

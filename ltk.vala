@@ -164,6 +164,8 @@ namespace Ltk{
     private bool _calculating_size = false;
     private GLib.List<Widget> _childs_fixed_height;
     private GLib.List<Widget> _childs_fixed_width;
+    private uint extra_width =0;
+    private uint extra_height =0;
     public Container(){
       base();
       this.fill_mask = ContainerFillPolicy.fill_height|ContainerFillPolicy.fill_width;
@@ -190,18 +192,25 @@ namespace Ltk{
     }
 
     public virtual void size_request(uint new_width, uint new_height){
-      if((new_width > this.width || new_height > this.height )  ){
-          Ltk.Widget? widget = this.parent;
-          while( widget != null){
-            if( widget is Ltk.Container ){
-              ((Ltk.Container)widget).size_request(new_width, new_height);
-              break;
-            }else{
-              widget = this.parent;
-            }
-          }
+      bool resize_inside = false;
+      if(new_width < (this.width + this.extra_width)  ){
+        if( new_height < (this.height + this.extra_height )  ){
+          uint oldw = this.width;
+          uint oldh = this.height;
+          this.calculate_size(ref oldw,ref oldh);
+          return;
         }
-    }
+      }
+      Ltk.Widget? widget = this.parent;
+      while( widget != null){
+        if( widget is Ltk.Container ){
+          ((Ltk.Container)widget).size_request(new_width, new_height);
+          break;
+        }else{
+          widget = this.parent;
+        }
+      }
+    }//size_request
 
     public void add(Widget child){
       child.parent = this;
@@ -302,14 +311,14 @@ namespace Ltk{
             _childs_fixed_width_sum += w.width;
           }
 
-          uint extra_width = this.width - _childs_fixed_width_sum;
+          this.extra_width = this.width - _childs_fixed_width_sum;
           uint extra_width_delta = 0;
 
           GLib.stderr.printf("childs.length=%u _childs_fixed_width.length=%u\n",this.childs.length(),this._childs_fixed_width.length());
           if( (this.childs.length() > this._childs_fixed_width.length())){
-            extra_width_delta = extra_width/(this.childs.length() - this._childs_fixed_width.length());
+            extra_width_delta = this.extra_width/(this.childs.length() - this._childs_fixed_width.length());
           }else{
-            extra_width_delta = extra_width;
+            extra_width_delta = this.extra_width;
           }
           GLib.stderr.printf("w=%u fw=%u extra_width_delta=%u\n",this.width, _childs_fixed_width_sum, extra_width_delta);
 
@@ -340,16 +349,16 @@ namespace Ltk{
           foreach(var w in this._childs_fixed_height){
             _childs_fixed_height_sum += w.height;
           }
-          uint extra_height = this.height - _childs_fixed_height_sum;
+          this.extra_height = this.height - _childs_fixed_height_sum;
           uint extra_height_delta = 0;
 
 
           GLib.stderr.printf("childs.length=%u _childs_fixed_height.length=%u\n",this.childs.length(),this._childs_fixed_height.length());
 
           if((this.childs.length() > this._childs_fixed_height.length())){
-            extra_height_delta = extra_height/(this.childs.length() - this._childs_fixed_height.length());
+            extra_height_delta = this.extra_height/(this.childs.length() - this._childs_fixed_height.length());
           }else{
-            extra_height_delta = extra_height;
+            extra_height_delta = this.extra_height;
           }
 
           GLib.stderr.printf("h=%u fh=%u extra_height_delta=%u\n",this.height, _childs_fixed_height_sum, extra_height_delta);
@@ -656,6 +665,7 @@ namespace Ltk{
     Xcb.AtomT deleteWindowAtom = this.atoms.lookup(atom_names.wm_delete_window);
 //~     GLib.stderr.printf( "event");
     while (( (event = this.C.wait_for_event()) != null ) && !finished ) {
+//~     while (( (event = this.C.poll_for_event()) != null ) && !finished ) {
 //~       GLib.stderr.printf( "event=%d expose=%d map=%d\n",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
         switch (event.response_type & ~0x80) {
           case Xcb.EXPOSE:
