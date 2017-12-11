@@ -451,6 +451,8 @@ namespace Ltk{
     private int pos_x = 0;
     private int pos_y = 0;
 
+    private MainLoop loop;
+
 
     public Window(){
 
@@ -531,6 +533,25 @@ namespace Ltk{
 
       this.surface = new Cairo.XcbSurface(this.C, this.window, visual, 10, 10);
       this.cr = new Cairo.Context(this.surface);
+
+      loop = new MainLoop ();
+
+      var channel = new IOChannel.unix_new(this.C.get_file_descriptor());
+      channel.add_watch(IOCondition.IN,  (source, condition) => {
+          if (condition == IOCondition.HUP) {
+          GLib.stderr.printf ("The connection has been broken.\n");
+          loop.quit();
+          return false;
+          }
+
+          return run_xcb();
+        });
+  //~     var xcb_source = new GLib.Source();
+  //~     xcb_source.set_name("Ltk XCB event source");
+  //~     xcb_source.set_callback(run_xcb);
+  //~     xcb_source.add_unix_fd(,GLib.IOCondition.IN);
+  //~     xcb_source.set_can_recurse(true);
+  //~     xcb_source.attach(loop.get_context ());
 
 
 //~       return base(null);
@@ -659,13 +680,14 @@ namespace Ltk{
 
   }
 
-  public void run(){
+  private bool run_xcb(){
     Xcb.GenericEvent event;
-    bool finished = false;
+    bool _continue = true;
     Xcb.AtomT deleteWindowAtom = this.atoms.lookup(atom_names.wm_delete_window);
-//~     GLib.stderr.printf( "event");
-    while (( (event = this.C.wait_for_event()) != null ) && !finished ) {
-//~     while (( (event = this.C.poll_for_event()) != null ) && !finished ) {
+
+//~     GLib.stderr.printf( "!!!!!!!!!!!event");
+//~     while (( (event = this.C.wait_for_event()) != null ) && !finished ) {
+    while (( (event = this.C.poll_for_event()) != null ) /*&& !finished*/ ) {
 //~       GLib.stderr.printf( "event=%d expose=%d map=%d\n",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
         switch (event.response_type & ~0x80) {
           case Xcb.EXPOSE:
@@ -683,7 +705,8 @@ namespace Ltk{
 //~               GLib.stderr.printf( "CLIENT_MESSAGE data32=%d deleteWindowAtom=%d\n", (int)e.data.data32[0],(int)deleteWindowAtom);
               if(e.data.data32[0] == deleteWindowAtom){
   //~                 printf("done\n");
-                  finished = true;
+                  _continue = false;
+                  loop.quit ();
               }
           break;
           case Xcb.CONFIGURE_NOTIFY:
@@ -694,6 +717,11 @@ namespace Ltk{
 //~         free(event);
         this.C.flush();
     }
+    return _continue;
+  }
+
+  public void run(){
+    loop.run ();
   }//run
 
     private void calculate_size_internal(){
@@ -747,6 +775,11 @@ namespace Ltk{
       GLib.stderr.printf( "window size_request=%u,%u\n", _w,_h);
       this.set_size(_w,_h);
     }
+
+    public void clear_area(uint x,uint y,uint width,uint height){
+      this.C.clear_area(1,this.window, (int16)x,(int16)y,(int16)width,(int16)height);
+      this.C.flush();
+    }//clear_area
   }//class Window
 
 

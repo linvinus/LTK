@@ -54,6 +54,13 @@ int main (string[] argv) {
       }else{
         button.width -= 100;
       }
+      Ltk.Container c = (Ltk.Container)button.parent;
+      uint oldw = c.width;
+      uint oldh = c.height;
+      c.calculate_size(ref oldw,ref oldh);
+      c.size_request(oldw, oldh);
+      window.clear_area(0,0,window.width,window.height);
+
       tick = !tick;
       return true;
       });
