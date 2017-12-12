@@ -98,6 +98,364 @@ namespace Ltk{
 
   private static GLib.List<Ltk.StyleColor,> style_colors;
   */
+
+  /********************************************************************/
+  public class XcbWindow{
+    private weak Ltk.Window window_widget;
+    private uint32 window;
+    private Cairo.XcbSurface surface;
+    private Cairo.Context cr;
+    private WindowState _wState;
+    private WindowState state{
+      get { return _wState;}
+      set {
+        if(_wState != value){
+          if(value == WindowState.visible ){
+            _wState = value;
+            this.show_do();
+//~             this.set_title_do();
+//~             this.set_size_do();
+            if(this.pos_x != -1 && this.pos_y != -1){
+              this.move_resize_req(this.pos_x, this.pos_y, this.width, this.height);
+            }else{
+              this.resize_req(this.width, this.height);
+            }
+            Global.C.flush();
+          }else if(value == WindowState.hidden ){ //WindowState.unconfigured is ignored
+            _wState = value;
+            //this.hide_do();
+          }
+        }
+      }
+    }
+    private int pos_x = -1;
+    private int pos_y = -1;
+    private uint width;
+    private uint height;
+
+    public XcbWindow(Ltk.Window window_widget){
+      this.window_widget = window_widget;
+      this.state = WindowState.unconfigured;
+      this.window = Global.C.generate_id();
+      this.width = 1;
+      this.height = 1;
+
+      uint32 mask[2];
+      mask[0] = 1;
+      mask[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
+
+      Global.C.create_window(Xcb.COPY_FROM_PARENT, this.window, Global.screen.root,
+                (int16)this.pos_x, (int16)this.pos_y, (uint16)this.width, (uint16)this.height, 0,
+                Xcb.WindowClass.INPUT_OUTPUT,
+                Global.screen.root_visual,
+                /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXEL| Xcb.CW.EVENT_MASK,
+                mask);
+
+
+
+      var hints =  new Xcb.Icccm.WmHints ();
+      Xcb.Icccm.wm_hints_set_normal(ref hints);
+      Global.I.set_wm_hints(this.window, hints);
+
+
+
+      Xcb.AtomT[] tmp_atoms={};
+      Global.atoms.foreach ((key, val) => {
+        if(key != atom_names.wm_protocols)
+          tmp_atoms += val;
+      });
+
+      Global.I.set_wm_protocols(this.window, Global.atoms.lookup(atom_names.wm_protocols), tmp_atoms);
+
+      this.surface = new Cairo.XcbSurface(Global.C, this.window, Global.visual, 10, 10);
+      this.cr = new Cairo.Context(this.surface);
+      
+      Global.windows.insert(this.window,this);
+    }//XcbWindow
+
+    ~XcbWindow(){
+      Global.windows.remove(this.window);
+    }//~XcbWindow
+
+    private void show_do(){
+      Global.C.map_window(this.window);
+    }//show_do
+
+    public void show(){
+      this.state = WindowState.visible;
+    }
+
+
+    public void set_title(string title){
+      if(title != null){
+        Global.C.change_property_uint8  ( Xcb.PropMode.REPLACE,
+                             this.window,
+                             Xcb.Atom.WM_NAME,
+                             Xcb.Atom.STRING,
+      //~                        8,
+                             title.length,
+                             title );
+      }
+    }//set_title_do
+
+ /*   private void set_size_do(){
+
+      var size_hints = new Xcb.Icccm.SizeHints();
+      size_hints.flags=(Xcb.Icccm.SizeHint.US_SIZE|Xcb.Icccm.SizeHint.P_SIZE|Xcb.Icccm.SizeHint.BASE_SIZE);
+      size_hints.height = (int32)this.height;
+      size_hints.width  = (int32)this.width;
+      size_hints.base_height = 0;
+      size_hints.base_width  = 0;
+//~       this.I.set_wm_normal_hints(this.window, size_hints);
+//~       this.surface.set_size((int)this.width,(int)this.height);
+    }*/
+
+    private void move_resize_req(uint x,uint y,uint width,uint height){
+        uint32 position[] = { this.pos_x, this.pos_y, this.width, this.height };
+        Global.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+    }
+
+    private void resize_req(uint width,uint height){
+      this.width = width;
+      this.height = height;
+      if(this.state == WindowState.visible){
+        uint32 position[] = { width, height };
+        Global.C.configure_window(this.window, ( Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+      }
+    }
+
+    public void resize(uint width,uint height){
+      this.width = width;
+      this.height = height;
+      if(this.state == WindowState.visible){
+        this.resize_req(this.width,this.height);
+      }
+    }
+
+    public void move_resize(uint x,uint y, uint width,uint height){
+      this.pos_x = (int)x;
+      this.pos_y = (int)y;
+      this.width = width;
+      this.height = height;
+      if(this.state == WindowState.visible){
+        this.move_resize_req(this.pos_x, this.pos_y, this.width, this.height);
+      }
+    }
+    public void set_size(uint width,uint height){
+        this.resize(width, height);
+    }
+
+    public void load_font_with_size(string fpatch,uint size){
+      var F = FontLoader.load(fpatch);
+      this.cr.set_font_face(F);
+      this.cr.set_font_size (size);
+    }
+
+    public void on_configure(Xcb.ConfigureNotifyEvent e){
+
+  //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
+  //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d\n",
+  //~                       (int)e.x,
+  //~                       (int)e.y,
+  //~                       (int)e.width,
+  //~                       (int)e.height,
+  //~                       (int)e.response_type,
+  //~                       (int)e.event,
+  //~                       (int)e.window
+  //~                       );
+  //~     GLib.stderr.printf( "on_map2 w=%u h=%u \n", this.width,this.height);
+      if( (e.width == 1 && e.height == 1) && (this.width != 1 && this.height != 1))
+        return;//skip first map
+
+      this.pos_x = e.x;
+      this.pos_y = e.y;
+      if(this.width != e.width || this.height != e.height){
+        this.width  = e.width;
+        this.height = e.height;
+        this.window_widget.width = this.width;
+        this.window_widget.height = this.height;
+        this.window_widget.calculate_size_internal();
+      }
+
+      this.surface.set_size((int)this.width,(int)this.height);
+
+  //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.width,(int)this.height);
+
+    }
+
+    public bool process_event(Xcb.GenericEvent event){
+      bool _continue = true;
+
+  //~     GLib.stderr.printf( "!!!!!!!!!!!event");
+  //~     while (( (event = Global.C.wait_for_event()) != null ) && !finished ) {
+//~       while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
+  //~       GLib.stderr.printf( "event=%d expose=%d map=%d\n",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
+          switch (event.response_type & ~0x80) {
+            case Xcb.EXPOSE:
+                /* Avoid extra redraws by checking if this is
+                 * the last expose event in the sequence
+                 */
+                 Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
+                if (e.count != 0)
+                    break;
+
+                this.window_widget.draw(this.cr);
+                this.surface.flush();
+            break;
+            case Xcb.CLIENT_MESSAGE:
+                Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
+  //~               GLib.stderr.printf( "CLIENT_MESSAGE data32=%d deleteWindowAtom=%d\n", (int)e.data.data32[0],(int)deleteWindowAtom);
+                if(e.data.data32[0] == Global.deleteWindowAtom){
+    //~                 printf("done\n");
+                    _continue = false;
+                    Global.loop.quit ();
+                }
+            break;
+            case Xcb.CONFIGURE_NOTIFY:
+                if(event.response_type == Xcb.CONFIGURE_NOTIFY)
+                  this.on_configure((Xcb.ConfigureNotifyEvent)event);
+            break;
+          }//switch
+  //~         free(event);
+//~           Global.C.flush();
+//~       }
+      return _continue;
+    }//process_event
+    
+    public void clear_area(uint x,uint y,uint width,uint height){
+      Global.C.clear_area(1,this.window, (int16)x,(int16)y,(int16)width,(int16)height);
+      Global.C.flush();
+    }//clear_area
+    
+  }//calss XcbWindow
+  /********************************************************************/
+//~   [SimpleType]
+//~   [CCode (has_type_id = false)]
+  public struct Global{
+    public static  Xcb.Connection C;
+    private static Xcb.Setup setup;
+    private static unowned Xcb.Icccm.Icccm I;
+    public static weak Xcb.Screen screen;
+    public static Xcb.VisualType? visual;
+    public static HashTable<string, Xcb.AtomT?> atoms;
+    private static Xcb.AtomT deleteWindowAtom;
+    private static MainLoop loop;
+    public static GLib.HashTable<Xcb.Window,XcbWindow> windows;
+    public static GLib.List<uint> timers;
+
+    public  static void Init(){
+      Global.atoms = new GLib.HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
+      Global.windows = new GLib.HashTable<Xcb.Window,XcbWindow> (direct_hash, direct_equal);
+      Global.timers = new GLib.List<uint> ();
+//~       ((GLib.HashTable)Global.windows).ref();
+      Global.C = new Xcb.Connection();
+
+
+      if (Global.C.has_error() != 0) {
+              GLib.stderr.printf( "Could not connect to X11 server");
+              GLib.Process.exit(1) ;
+      }
+
+      Global.I = Xcb.Icccm.new(Global.C);
+
+      Global.setup = Global.C.get_setup();
+      var s_iterator = Global.setup.roots_iterator();
+      Global.screen = s_iterator.data;
+
+//~       Xcb.AtomT tmp_atom;
+      if(!Global.atoms.contains(atom_names.wm_delete_window))
+        Global.atoms.insert(atom_names.wm_delete_window,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names.wm_delete_window)).atom);
+
+      if(!Global.atoms.contains(atom_names.wm_take_focus))
+        Global.atoms.insert(atom_names.wm_take_focus,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names.wm_take_focus)).atom);
+
+      if(!Global.atoms.contains(atom_names._net_wm_ping))
+        Global.atoms.insert(atom_names._net_wm_ping,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_ping)).atom);
+
+      if(!Global.atoms.contains(atom_names._net_wm_sync_request))
+        Global.atoms.insert(atom_names._net_wm_sync_request,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_sync_request)).atom);
+
+      if(!Global.atoms.contains(atom_names.wm_protocols))
+        Global.atoms.insert(atom_names.wm_protocols,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names.wm_protocols)).atom);
+
+      Global.deleteWindowAtom = Global.atoms.lookup(atom_names.wm_delete_window);
+     
+      Global.visual = find_visual(Global.C, Global.screen.root_visual);
+      if (Global.visual == null) {
+//~           printf( "Some weird internal error...?!");
+    //~       c.disconnect(); ???
+          return;
+      }
+
+      Global.loop = new MainLoop ();
+
+      var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
+      channel.add_watch(IOCondition.IN,  (source, condition) => {
+          if (condition == IOCondition.HUP) {
+          GLib.stderr.printf ("The connection has been broken.\n");
+          Global.loop.quit();
+          return false;
+          }
+         Xcb.GenericEvent event;
+      //~     GLib.stderr.printf( "!!!!!!!!!!!event");
+      //~     while (( (event = Global.C.wait_for_event()) != null ) && !finished ) {
+          while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
+            switch (event.response_type & ~0x80) {
+              case Xcb.EXPOSE:
+              case Xcb.CLIENT_MESSAGE:
+                 Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
+                 Global.windows.lookup(e.window).process_event(event);
+              break;
+              case Xcb.CONFIGURE_NOTIFY:
+                 Xcb.ConfigureNotifyEvent e = (Xcb.ConfigureNotifyEvent)event;
+                 Global.windows.lookup(e.window).process_event(event);
+              break;
+             }
+           Global.C.flush();
+          }
+          return true;
+        });
+  //~     var xcb_source = new GLib.Source();
+  //~     xcb_source.set_name("Ltk XCB event source");
+  //~     xcb_source.set_callback(run_xcb);
+  //~     xcb_source.add_unix_fd(,GLib.IOCondition.IN);
+  //~     xcb_source.set_can_recurse(true);
+  //~     xcb_source.attach(loop.get_context ());
+
+
+    }//constructor
+    
+    [CCode (cname = "g_main_loop_unref")]
+    extern static void loop_unref(GLib.MainLoop loop);
+    
+    public static void run(){
+      Global.loop.run ();
+      foreach(var t in Global.timers){
+        GLib.Source.remove(t);
+      }
+      if(Global.loop != null)
+        loop_unref(Global.loop);
+        
+
+      Global.atoms.remove_all();
+      Global.windows.remove_all();
+      //~     surface.finish();
+    FontLoader.destroy();
+//~     surface.destroy();
+//~     xcb_disconnect(c);
+    }//run
+
+    public static void add_timer(uint time,GLib.SourceFunc ontime){
+      Global.timers.append(GLib.Timeout.add(time,ontime));
+    }
+
+  }
+  
   /********************************************************************/
   public class Widget : GLib.Object{
     public Widget? parent;
@@ -141,6 +499,20 @@ namespace Ltk{
     public virtual uint get_prefered_height(){
       return this.height;
     }
+    private bool  _visible;
+    public  bool visible {
+      get{
+        return this._visible;
+      }
+      set{
+        if(value != this._visible){
+          this._visible = value;
+          this.size_changed(this);
+        }
+      }
+      default = false;
+      }
+    
 
     public Widget(Widget? parent = null){
       GLib.Object();
@@ -158,6 +530,13 @@ namespace Ltk{
         cr.restore();
       return true;//continue
     }//draw
+
+    public virtual void show(){
+      this.visible = true;
+    }
+    public virtual void hide(){
+      this.visible = false;
+    }
   }
   /********************************************************************/
   public class Container: Widget{
@@ -419,208 +798,23 @@ namespace Ltk{
   }//class container
   /********************************************************************/
   public class Window: Container{
+    private XcbWindow window;
     private bool _calculating_size = false;
-    public  Xcb.Connection C;
-    private Xcb.Setup setup;
-    private unowned Xcb.Icccm.Icccm I;
-    private uint32 window;
-    private weak Xcb.Screen screen;
-    private Cairo.XcbSurface surface;
-    private Cairo.Context cr;
-    private HashTable<string, Xcb.AtomT?> atoms;
-    private WindowState _wState;
-    private WindowState state{
-      get { return _wState;}
-      set {
-        if(_wState != value){
-          if(value == WindowState.visible ){
-            _wState = value;
-            this.show_do();
-            this.set_title_do();
-//~             this.set_size_do();
-            this.configure_window_do();
-            this.C.flush();
-          }else if(value == WindowState.hidden ){ //WindowState.unconfigured is ignored
-            _wState = value;
-            //this.hide_do();
-          }
-        }
-      }
-    }
     private string? title = null;
-    private int pos_x = 0;
-    private int pos_y = 0;
-
-    private MainLoop loop;
-
 
     public Window(){
 
       base();
       this.width=this.height=1;
 
-      this.state = WindowState.unconfigured;
-      this.atoms = new HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
-
-      this.C = new Xcb.Connection();
-
-
-      if (this.C.has_error() != 0) {
-//~               printf( "Could not connect to X11 server");
-              return ;//null;
-      }
-
-      this.I = Xcb.Icccm.new(this.C);
-
-      this.setup = this.C.get_setup();
-      var s_iterator = this.setup.roots_iterator();
-      this.screen = s_iterator.data;
-      this.window = this.C.generate_id();
-
-      uint32 mask[2];
-      mask[0] = 1;
-      mask[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
-
-      this.C.create_window(Xcb.COPY_FROM_PARENT, this.window, this.screen.root,
-                (int16)this.pos_x, (int16)this.pos_y, (uint16)this.width, (uint16)this.height, 0,
-                Xcb.WindowClass.INPUT_OUTPUT,
-                this.screen.root_visual,
-                /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXEL| Xcb.CW.EVENT_MASK,
-                mask);
-
-
-
-      var hints =  new Xcb.Icccm.WmHints ();
-      Xcb.Icccm.wm_hints_set_normal(ref hints);
-      this.I.set_wm_hints(this.window, hints);
-
-//~       Xcb.AtomT tmp_atom;
-      if(!this.atoms.contains(atom_names.wm_delete_window))
-        this.atoms.insert(atom_names.wm_delete_window,
-          this.C.intern_atom_reply(this.C.intern_atom(false,atom_names.wm_delete_window)).atom);
-
-      if(!this.atoms.contains(atom_names.wm_take_focus))
-        this.atoms.insert(atom_names.wm_take_focus,
-          this.C.intern_atom_reply(this.C.intern_atom(false,atom_names.wm_take_focus)).atom);
-
-      if(!this.atoms.contains(atom_names._net_wm_ping))
-        this.atoms.insert(atom_names._net_wm_ping,
-          this.C.intern_atom_reply(this.C.intern_atom(false,atom_names._net_wm_ping)).atom);
-
-      if(!this.atoms.contains(atom_names._net_wm_sync_request))
-        this.atoms.insert(atom_names._net_wm_sync_request,
-          this.C.intern_atom_reply(this.C.intern_atom(false,atom_names._net_wm_sync_request)).atom);
-
-      if(!this.atoms.contains(atom_names.wm_protocols))
-        this.atoms.insert(atom_names.wm_protocols,
-          this.C.intern_atom_reply(this.C.intern_atom(false,atom_names.wm_protocols)).atom);
-
-      Xcb.AtomT[] tmp_atoms={};
-      this.atoms.foreach ((key, val) => {
-        if(key != atom_names.wm_protocols)
-          tmp_atoms += val;
-      });
-
-      I.set_wm_protocols(this.window, this.atoms.lookup(atom_names.wm_protocols), tmp_atoms);
-
-      var visual = find_visual(this.C, this.screen.root_visual);
-      if (visual == null) {
-//~           printf( "Some weird internal error...?!");
-    //~       c.disconnect(); ???
-          return;
-      }
-
-
-      this.surface = new Cairo.XcbSurface(this.C, this.window, visual, 10, 10);
-      this.cr = new Cairo.Context(this.surface);
-
-      loop = new MainLoop ();
-
-      var channel = new IOChannel.unix_new(this.C.get_file_descriptor());
-      channel.add_watch(IOCondition.IN,  (source, condition) => {
-          if (condition == IOCondition.HUP) {
-          GLib.stderr.printf ("The connection has been broken.\n");
-          loop.quit();
-          return false;
-          }
-
-          return run_xcb();
-        });
-  //~     var xcb_source = new GLib.Source();
-  //~     xcb_source.set_name("Ltk XCB event source");
-  //~     xcb_source.set_callback(run_xcb);
-  //~     xcb_source.add_unix_fd(,GLib.IOCondition.IN);
-  //~     xcb_source.set_can_recurse(true);
-  //~     xcb_source.attach(loop.get_context ());
-
-
+      this.window = new XcbWindow(this);
 //~       return base(null);
     }
 
-    private void show_do(){
-      this.C.map_window(this.window);
-    }//show_do
-
-    public void show(){
-      this.state = WindowState.visible;
-    }
-
-
-    private void set_title_do(){
-      if(this.title != null){
-        this.C.change_property_uint8  ( Xcb.PropMode.REPLACE,
-                             this.window,
-                             Xcb.Atom.WM_NAME,
-                             Xcb.Atom.STRING,
-      //~                        8,
-                             this.title.length,
-                             this.title );
-      }
-    }//set_title_do
-
-    public void set_title(string title){
-      this.title = title;
-      if(this.state == WindowState.visible){
-        this.set_title_do();
-      }
-    }//set_title
-
- /*   private void set_size_do(){
-
-      var size_hints = new Xcb.Icccm.SizeHints();
-      size_hints.flags=(Xcb.Icccm.SizeHint.US_SIZE|Xcb.Icccm.SizeHint.P_SIZE|Xcb.Icccm.SizeHint.BASE_SIZE);
-      size_hints.height = (int32)this.height;
-      size_hints.width  = (int32)this.width;
-      size_hints.base_height = 0;
-      size_hints.base_width  = 0;
-//~       this.I.set_wm_normal_hints(this.window, size_hints);
-//~       this.surface.set_size((int)this.width,(int)this.height);
-    }*/
-
-    private void configure_window_do(){
-      uint32 position[] = { this.pos_x, this.pos_y, this.width, this.height };
-      this.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
-    }
-
     public void set_size(uint width,uint height){
-//~       this.calculate_size();
-//~       this.configure_window_do();
-      if(this.state == WindowState.visible){
-        uint32 position[] = { width, height };
-        this.C.configure_window(this.window, ( Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
-      }else{
-        this.width=width;
-        this.height=height;
-//~         this.calculate_size_internal();
-      }
+        this.window.set_size(width,height);
     }
-
-    public void load_font_with_size(string fpatch,uint size){
-      var F = FontLoader.load(fpatch);
-      this.cr.set_font_face(F);
-      this.cr.set_font_size (size);
-    }
-
+    
     public override bool draw(Cairo.Context cr){
       string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
       cr.save();
@@ -647,84 +841,12 @@ namespace Ltk{
       this.A.width = this.width;
       this.A.height = this.height;
       return base.draw(cr);
-      surface.flush();
     }//draw
 
-  public void on_configure(Xcb.ConfigureNotifyEvent e){
 
-//~     var geom = this.C.get_geometry_reply(this.C.get_geometry_unchecked(e.window), null);
-//~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d\n",
-//~                       (int)e.x,
-//~                       (int)e.y,
-//~                       (int)e.width,
-//~                       (int)e.height,
-//~                       (int)e.response_type,
-//~                       (int)e.event,
-//~                       (int)e.window
-//~                       );
-//~     GLib.stderr.printf( "on_map2 w=%u h=%u \n", this.width,this.height);
-    if( (e.width == 1 && e.height == 1) && (this.width != 1 && this.height != 1))
-      return;//skip first map
 
-    this.pos_x = e.x;
-    this.pos_y = e.y;
-    if(this.width != e.width || this.height != e.height){
-      this.width  = e.width;
-      this.height = e.height;
-      this.calculate_size_internal();
-    }
 
-    this.surface.set_size((int)this.width,(int)this.height);
-
-//~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.width,(int)this.height);
-
-  }
-
-  private bool run_xcb(){
-    Xcb.GenericEvent event;
-    bool _continue = true;
-    Xcb.AtomT deleteWindowAtom = this.atoms.lookup(atom_names.wm_delete_window);
-
-//~     GLib.stderr.printf( "!!!!!!!!!!!event");
-//~     while (( (event = this.C.wait_for_event()) != null ) && !finished ) {
-    while (( (event = this.C.poll_for_event()) != null ) /*&& !finished*/ ) {
-//~       GLib.stderr.printf( "event=%d expose=%d map=%d\n",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
-        switch (event.response_type & ~0x80) {
-          case Xcb.EXPOSE:
-              /* Avoid extra redraws by checking if this is
-               * the last expose event in the sequence
-               */
-               Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
-              if (e.count != 0)
-                  break;
-
-              this.draw(this.cr);
-          break;
-          case Xcb.CLIENT_MESSAGE:
-              Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
-//~               GLib.stderr.printf( "CLIENT_MESSAGE data32=%d deleteWindowAtom=%d\n", (int)e.data.data32[0],(int)deleteWindowAtom);
-              if(e.data.data32[0] == deleteWindowAtom){
-  //~                 printf("done\n");
-                  _continue = false;
-                  loop.quit ();
-              }
-          break;
-          case Xcb.CONFIGURE_NOTIFY:
-              if(event.response_type == Xcb.CONFIGURE_NOTIFY)
-                this.on_configure((Xcb.ConfigureNotifyEvent)event);
-          break;
-        }//switch
-//~         free(event);
-        this.C.flush();
-    }
-    return _continue;
-  }
-
-  public void run(){
-    loop.run ();
-  }//run
-
-    private void calculate_size_internal(){
+    public void calculate_size_internal(){
       GLib.stderr.printf( "window calculate_size w=%u h=%u loop=%d\n", this.width,this.height,(int)this._calculating_size);
 
       if(this._calculating_size)
@@ -756,9 +878,9 @@ namespace Ltk{
         this.childs.first ().data.width = this.width;
       }*/
 
-      if(force_resize && this.state == WindowState.visible){
+      if(force_resize){
         GLib.stderr.printf( "3 w=%u h=%u\n", this.width,this.height);
-        this.configure_window_do();
+        this.window.resize(this.width,this.height);
       }
 
       this._calculating_size=false;
@@ -776,10 +898,22 @@ namespace Ltk{
       this.set_size(_w,_h);
     }
 
+    public void set_title(string title){
+      this.window.set_title(title);
+    }
+    public void load_font_with_size(string fpatch,uint size){
+      this.window.load_font_with_size(fpatch, size);
+    }
     public void clear_area(uint x,uint y,uint width,uint height){
-      this.C.clear_area(1,this.window, (int16)x,(int16)y,(int16)width,(int16)height);
-      this.C.flush();
-    }//clear_area
+      this.window.clear_area(x, y, width, height);
+    }
+
+    public override void show(){
+      base.show();
+      this.window.show();
+    }
+
+
   }//class Window
 
 

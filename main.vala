@@ -22,6 +22,8 @@ using Posix;
 
 int main (string[] argv) {
 
+    Ltk.Global.Init();
+    
     var window = new Ltk.Window();
     window.size_policy = Ltk.SizePolicy.horizontal;
     window.fill_mask |= Ltk.ContainerFillPolicy.fill_height | Ltk.ContainerFillPolicy.fill_width;
@@ -46,7 +48,7 @@ int main (string[] argv) {
 //~     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width | Ltk.ContainerFillPolicy.fill_height;
 //~     container.add(button);
     bool tick = false;
-    GLib.Timeout.add(500,()=>{
+    GLib.SourceFunc ontime = ()=>{
       GLib.stderr.printf("GLib.Timeout\n");
 //~       button.label += ""
       if(!tick){
@@ -62,8 +64,9 @@ int main (string[] argv) {
       window.clear_area(0,0,window.width,window.height);
 
       tick = !tick;
-      return true;
-      });
+      return GLib.Source.CONTINUE;
+      };
+    Ltk.Global.add_timer(5000,ontime);
 
     var container2 = new Ltk.Container();
     container2.size_policy = Ltk.SizePolicy.horizontal;
@@ -83,11 +86,9 @@ int main (string[] argv) {
     window.add(container2);
 
     window.show();
-    window.run();
-//~     surface.finish();
-    FontLoader.destroy();
-//~     surface.destroy();
-//~     xcb_disconnect(c);
+
+    Ltk.Global.run();
+
 
   return 0;
 }
