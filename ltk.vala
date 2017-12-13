@@ -36,6 +36,9 @@ private static Xcb.VisualType? find_visual(Xcb.Connection c, Xcb.VisualID visual
     return null;
 }
 
+[CCode (cname = "cairo_xcb_surface_set_drawable")]
+extern void cairo_xcb_surface_set_drawable(Cairo.XcbSurface s,uint32 d,int width,int height);
+
 
 namespace Ltk{
   [SimpleType]
@@ -102,7 +105,9 @@ namespace Ltk{
   /********************************************************************/
   public class XcbWindow{
     private weak Ltk.Window window_widget;
-    private uint32 window;
+    private uint32 window = 0;
+    private uint32 pixmap = 0;
+    private uint32 pixmap_gc = 0;
     private Cairo.XcbSurface surface;
     private Cairo.Context cr;
     private WindowState _wState;
@@ -133,23 +138,49 @@ namespace Ltk{
     private uint width;
     private uint height;
 
+    private void create_pixmap(uint16 width, uint16 height){
+      if(this.pixmap != 0){
+        Global.C.free_gc(this.pixmap_gc);
+        Global.C.free_pixmap(this.pixmap);
+      }
+      this.pixmap = Global.C.generate_id();
+      this.pixmap_gc = Global.C.generate_id();
+
+      Global.C.create_pixmap(Global.screen.root_depth,this.pixmap,Global.screen.root,width,height);
+      uint32 values[2];
+      values[0] = Global.screen.white_pixel;
+      values[1] = Global.screen.white_pixel;
+      Global.C.create_gc(this.pixmap_gc, this.pixmap, (Xcb.GC.BACKGROUND|Xcb.GC.FOREGROUND),values);
+
+      if(this.window != 0 ){
+        values[0] =  this.pixmap ;
+        values[1] = 0;
+        Global.C.change_window_attributes (this.window, Xcb.CW.BACK_PIXMAP, values);
+      }
+//~       uint32 position[] = { this.pos_x, this.pos_y, this.width, this.height };
+//~       Global.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+
+    }
+
     public XcbWindow(Ltk.Window window_widget){
       this.window_widget = window_widget;
       this.state = WindowState.unconfigured;
       this.window = Global.C.generate_id();
       this.width = 1;
       this.height = 1;
+      uint32 values[2];
 
-      uint32 mask[2];
-      mask[0] = 1;
-      mask[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
+      this.create_pixmap(1,1);
+
+      values[0] = this.pixmap;
+      values[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
 
       Global.C.create_window(Xcb.COPY_FROM_PARENT, this.window, Global.screen.root,
                 (int16)this.pos_x, (int16)this.pos_y, (uint16)this.width, (uint16)this.height, 0,
                 Xcb.WindowClass.INPUT_OUTPUT,
                 Global.screen.root_visual,
-                /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXEL| Xcb.CW.EVENT_MASK,
-                mask);
+                /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXMAP| Xcb.CW.EVENT_MASK,
+                values);
 
 
 
@@ -167,14 +198,16 @@ namespace Ltk{
 
       Global.I.set_wm_protocols(this.window, Global.atoms.lookup(atom_names.wm_protocols), tmp_atoms);
 
-      this.surface = new Cairo.XcbSurface(Global.C, this.window, Global.visual, 10, 10);
+
+      this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.width, (int)this.height);
       this.cr = new Cairo.Context(this.surface);
-      
+
       Global.windows.insert(this.window,this);
     }//XcbWindow
 
     ~XcbWindow(){
       Global.windows.remove(this.window);
+      Global.C.free_pixmap(this.pixmap);
     }//~XcbWindow
 
     private void show_do(){
@@ -251,6 +284,7 @@ namespace Ltk{
       this.cr.set_font_size (size);
     }
 
+
     public void on_configure(Xcb.ConfigureNotifyEvent e){
 
   //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
@@ -276,9 +310,18 @@ namespace Ltk{
         this.window_widget.height = this.height;
         this.window_widget.calculate_size_internal();
       }
+      /*
+       * there is no way to resize X11 pixmap,
+       * we can only destroy old and create newone.
+       */
+        this.create_pixmap((uint16)this.width,(uint16)this.height);
+//~         Global.C.flush();
+//~         Global.C.create_pixmap(Global.screen.root_depth,this.pixmap,Global.screen.root,(uint16)this.width,(uint16)this.height);
+//~       this.pixmap
+//~         this.surface.set_size((int)this.width,(int)this.height);
 
-      this.surface.set_size((int)this.width,(int)this.height);
-
+//~         this.surface.set_drawable(this.pixmap,(int)this.width,(int)this.height);
+        cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.width,(int)this.height);
   //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.width,(int)this.height);
 
     }
@@ -301,6 +344,9 @@ namespace Ltk{
 
                 this.window_widget.draw(this.cr);
                 this.surface.flush();
+//~                 Global.C.flush();
+                Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.width,(int16)this.height);
+//~                 Global.C.clear_area(1,this.window, (int16)0,(int16)0,(int16)e.width,(int16)e.height);
             break;
             case Xcb.CLIENT_MESSAGE:
                 Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
@@ -321,12 +367,16 @@ namespace Ltk{
 //~       }
       return _continue;
     }//process_event
-    
+
     public void clear_area(uint x,uint y,uint width,uint height){
-      Global.C.clear_area(1,this.window, (int16)x,(int16)y,(int16)width,(int16)height);
+//~       Global.C.clear_area(1,this.window, (int16)x,(int16)y,(int16)width,(int16)height);
+      this.window_widget.draw(this.cr);
+      this.surface.flush();
+//~       Global.C.clear_area(1,this.window, (int16)0,(int16)0,(int16)width,(int16)height);
+      Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.width,(int16)this.height);
       Global.C.flush();
     }//clear_area
-    
+
   }//calss XcbWindow
   /********************************************************************/
 //~   [SimpleType]
@@ -384,7 +434,7 @@ namespace Ltk{
           Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names.wm_protocols)).atom);
 
       Global.deleteWindowAtom = Global.atoms.lookup(atom_names.wm_delete_window);
-     
+
       Global.visual = find_visual(Global.C, Global.screen.root_visual);
       if (Global.visual == null) {
 //~           printf( "Some weird internal error...?!");
@@ -429,10 +479,10 @@ namespace Ltk{
 
 
     }//constructor
-    
+
     [CCode (cname = "g_main_loop_unref")]
     extern static void loop_unref(GLib.MainLoop loop);
-    
+
     public static void run(){
       Global.loop.run ();
       foreach(var t in Global.timers){
@@ -440,7 +490,7 @@ namespace Ltk{
       }
       if(Global.loop != null)
         loop_unref(Global.loop);
-        
+
 
       Global.atoms.remove_all();
       Global.windows.remove_all();
@@ -455,7 +505,7 @@ namespace Ltk{
     }
 
   }
-  
+
   /********************************************************************/
   public class Widget : GLib.Object{
     public Widget? parent;
@@ -512,7 +562,7 @@ namespace Ltk{
       }
       default = false;
       }
-    
+
 
     public Widget(Widget? parent = null){
       GLib.Object();
@@ -596,6 +646,10 @@ namespace Ltk{
       this.childs.append(child);
       this.on_size_changed(child);
       child.size_changed.connect(this.on_size_changed);
+      this.update_childs_sizes();
+    }
+
+    public void update_childs_sizes(){
       uint oldw = this.width;
       uint oldh = this.height;
       this.calculate_size(ref oldw,ref oldh);
@@ -612,11 +666,7 @@ namespace Ltk{
       if( elm != null)
         this._childs_fixed_width.remove(child);
 
-      uint oldw = this.width;
-      uint oldh = this.height;
-      this.calculate_size(ref oldw,ref oldh);
-//~       if(oldw > this.width || oldh > this.height)
-//~         this.parent.size_request(oldw, oldh);
+      this.update_childs_sizes();
     }
 
     public override uint get_prefered_width(){
@@ -814,7 +864,7 @@ namespace Ltk{
     public void set_size(uint width,uint height){
         this.window.set_size(width,height);
     }
-    
+
     public override bool draw(Cairo.Context cr){
       string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
       cr.save();

@@ -23,7 +23,7 @@ using Posix;
 int main (string[] argv) {
 
     Ltk.Global.Init();
-    
+
     var window = new Ltk.Window();
     window.size_policy = Ltk.SizePolicy.horizontal;
     window.fill_mask |= Ltk.ContainerFillPolicy.fill_height | Ltk.ContainerFillPolicy.fill_width;
@@ -57,16 +57,17 @@ int main (string[] argv) {
         button.width -= 100;
       }
       Ltk.Container c = (Ltk.Container)button.parent;
-      uint oldw = c.width;
-      uint oldh = c.height;
-      c.calculate_size(ref oldw,ref oldh);
-      c.size_request(oldw, oldh);
+//~       uint oldw = c.width;
+//~       uint oldh = c.height;
+//~       c.calculate_size(ref oldw,ref oldh);
+//~       c.size_request(oldw, oldh);
+      window.update_childs_sizes();
       window.clear_area(0,0,window.width,window.height);
 
       tick = !tick;
       return GLib.Source.CONTINUE;
       };
-    Ltk.Global.add_timer(5000,ontime);
+    Ltk.Global.add_timer(1000,ontime);
 
     var container2 = new Ltk.Container();
     container2.size_policy = Ltk.SizePolicy.horizontal;
