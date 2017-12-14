@@ -506,7 +506,7 @@ namespace Ltk{
   /********************************************************************/
   public class Widget : GLib.Object{
     public weak Widget? parent;
-    public GLib.List<Widget> childs;
+    public GLib.List<weak Widget> childs;
     public uint width;
     public uint height;
     public uint x;
@@ -592,8 +592,8 @@ namespace Ltk{
   /********************************************************************/
   public class Container: Widget{
     private bool _calculating_size = false;
-    private GLib.List<Widget> _childs_fixed_height;
-    private GLib.List<Widget> _childs_fixed_width;
+    private GLib.List<weak Widget> _childs_fixed_height;
+    private GLib.List<weak Widget> _childs_fixed_width;
     private uint extra_width =0;
     private uint extra_height =0;
     public Container(){
