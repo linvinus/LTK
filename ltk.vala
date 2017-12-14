@@ -506,7 +506,7 @@ namespace Ltk{
   /********************************************************************/
   public class Widget : GLib.Object{
     public weak Widget? parent;
-    public GLib.List<weak Widget> childs;
+    public GLib.List<Widget> childs;
     public uint width;
     public uint height;
     public uint x;

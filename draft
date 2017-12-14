@@ -1,0 +1,38 @@
+1) каждый обьект имеет min_width,min_height
+2) каждый объект стремится занять min_width,min_height
+3) каждый объект может менять только
+ - min_width     [>0]
+ - min_height    [>0]
+ - size_priority [0  .. 100 .. 100+]
+ - size_policy  [Ltk.SizePolicy.horizontal | Ltk.SizePolicy.vertical]
+ - fill_mask    [Ltk.FillPolicy.horizontal | Ltk.FillPolicy.vertical]
+
+4) положение каждого объекта задано структурой Allocation {x,y,width,height}
+5) отрисовка самого объекта всегда происходит в координатах самого объекта, x,y =0
+
+4) у каждого объекта есть приоритет, возможные комбинации
+
+0 - наивысший приоритет
+> 100 низкий приоритет
+--окно приоритет по умолчанию 100 , Global.default_priority = 100;
+
+void widget.get_min_size(&width,&height);
+void widget.set_min_size(width,height);
+uint widget.get_size_priority();
+void widget.set_size_priority(uint priority);
+uint widget.get_size_policy();
+void widget.set_size_policy(uint policy);
+uint widget.get_fill_mask();
+void widget.set_fill_mask(uint mask);
+
+//может лучше структуру/объект?
+void widget.size_get_configuration(&width,&height,&priority,&fill_mask,&size_policy);//all in one
+void widget.size_configure(width,height,priority,fill_mask,size_policy);//all in one
+
+сценарий
+void widget.set_min_size(width,height); -> widget.parent_container.size_request(min_width,min_height,object.priority);
+void widget.set_size_priority(Global.default_priority - 1); -> widget.parent_container.size_request(min_width,min_height,object.priority);
+void widget.set_size_policy(policy); -> widget.parent_container.size_request(min_width,min_height,object.priority);
+void widget.set_fill_mask(mask); -> widget.parent_container.size_request(min_width,min_height,object.priority);
+
+блин, по каждому чиху пересчёт :(
