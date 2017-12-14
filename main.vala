@@ -67,7 +67,7 @@ int main (string[] argv) {
       tick = !tick;
       return GLib.Source.CONTINUE;
       };
-    Ltk.Global.add_timer(1000,ontime);
+    GLib.Timeout.add(1000,ontime);
 
     var container2 = new Ltk.Container();
     container2.size_policy = Ltk.SizePolicy.horizontal;

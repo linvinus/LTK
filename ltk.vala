@@ -104,7 +104,7 @@ namespace Ltk{
 
   /********************************************************************/
   public class XcbWindow{
-    private weak Ltk.Window window_widget;
+    public weak Ltk.Window window_widget;
     private uint32 window = 0;
     private uint32 pixmap = 0;
     private uint32 pixmap_gc = 0;
@@ -206,8 +206,13 @@ namespace Ltk{
     }//XcbWindow
 
     ~XcbWindow(){
+      GLib.stderr.printf("~XcbWindow\n");
+      this.surface.finish();//When the last call to cairo_surface_destroy() decreases the reference count to zero, cairo will call cairo_surface_finish()
       Global.windows.remove(this.window);
+      Global.C.free_gc(this.pixmap_gc);
       Global.C.free_pixmap(this.pixmap);
+      Global.C.destroy_window(this.window);
+      Global.C.flush();
     }//~XcbWindow
 
     private void show_do(){
@@ -391,12 +396,10 @@ namespace Ltk{
     private static Xcb.AtomT deleteWindowAtom;
     private static MainLoop loop;
     public static GLib.HashTable<Xcb.Window,XcbWindow> windows;
-    public static GLib.List<uint> timers;
 
     public  static void Init(){
       Global.atoms = new GLib.HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
       Global.windows = new GLib.HashTable<Xcb.Window,XcbWindow> (direct_hash, direct_equal);
-      Global.timers = new GLib.List<uint> ();
 //~       ((GLib.HashTable)Global.windows).ref();
       Global.C = new Xcb.Connection();
 
@@ -485,30 +488,24 @@ namespace Ltk{
 
     public static void run(){
       Global.loop.run ();
-      foreach(var t in Global.timers){
-        GLib.Source.remove(t);
-      }
-      if(Global.loop != null)
-        loop_unref(Global.loop);
-
-
+      GLib.stderr.printf ("atoms.remove_all\n");
+      Global.atoms.foreach((k,v)=>{ free((void*)v); });
       Global.atoms.remove_all();
+      GLib.stderr.printf ("windows.remove_all\n");
+//~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
       Global.windows.remove_all();
+
       //~     surface.finish();
     FontLoader.destroy();
 //~     surface.destroy();
 //~     xcb_disconnect(c);
     }//run
 
-    public static void add_timer(uint time,GLib.SourceFunc ontime){
-      Global.timers.append(GLib.Timeout.add(time,ontime));
-    }
-
   }
 
   /********************************************************************/
   public class Widget : GLib.Object{
-    public Widget? parent;
+    public weak Widget? parent;
     public GLib.List<Widget> childs;
     public uint width;
     public uint height;
@@ -570,6 +567,10 @@ namespace Ltk{
       if(parent != null)
         this.parent = parent;
     }//create
+
+    ~Widget(){
+      GLib.stderr.printf("~Widget\n");
+    }
 
     public virtual bool draw(Cairo.Context cr){
         cr.save();
@@ -859,6 +860,10 @@ namespace Ltk{
 
       this.window = new XcbWindow(this);
 //~       return base(null);
+    }
+
+    ~Window(){
+      GLib.stderr.printf("~Window\n");
     }
 
     public void set_size(uint width,uint height){
