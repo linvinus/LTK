@@ -48,18 +48,19 @@ namespace Ltk{
     hidden,
     visible
   }
+
+  //uint32
   [SimpleType]
+  //[IntegerType (rank = 9)]
   [CCode (has_type_id = false)]
-  public enum ContainerFillPolicy{
-    fill_width=1,
-    fill_height=2
+  public enum SOptions{
+    fill_horizontal  =1<<0,
+    fill_vertical    =1<<1,
+    place_horizontal =1<<2,
+    place_vertical   =1<<3,
+    visible          =1<<4
   }
-  [SimpleType]
-  [CCode (has_type_id = false)]
-  public enum SizePolicy{
-    horizontal=1,
-    vertical=2
-  }
+
   /*[SimpleType]*/
   [CCode (has_type_id = false)]
   struct atom_names{
@@ -70,13 +71,15 @@ namespace Ltk{
     public static const string _net_wm_ping = "_NET_WM_PING";
     public static const string _net_wm_sync_request = "_NET_WM_SYNC_REQUEST";
   }
-  [SimpleType]
+
+//~   [SimpleType]
   [CCode (has_type_id = false)]
   public struct Allocation{
-    uint x;
-    uint y;
-    uint width;
-    uint height;
+    uint32 x;
+    uint32 y;
+    uint32 width;
+    uint32 height;
+    SOptions options;
   }
 
 /*  public struct FColor{
@@ -121,9 +124,9 @@ namespace Ltk{
 //~             this.set_title_do();
 //~             this.set_size_do();
             if(this.pos_x != -1 && this.pos_y != -1){
-              this.move_resize_req(this.pos_x, this.pos_y, this.width, this.height);
+              this.move_resize_req(this.pos_x, this.pos_y, this.min_width, this.min_height);
             }else{
-              this.resize_req(this.width, this.height);
+              this.resize_req(this.min_width, this.min_height);
             }
             Global.C.flush();
           }else if(value == WindowState.hidden ){ //WindowState.unconfigured is ignored
@@ -135,8 +138,8 @@ namespace Ltk{
     }
     private int pos_x = -1;
     private int pos_y = -1;
-    private uint width;
-    private uint height;
+    private uint min_width;
+    private uint min_height;
 
     private void create_pixmap(uint16 width, uint16 height){
       if(this.pixmap != 0){
@@ -157,7 +160,7 @@ namespace Ltk{
         values[1] = 0;
         Global.C.change_window_attributes (this.window, Xcb.CW.BACK_PIXMAP, values);
       }
-//~       uint32 position[] = { this.pos_x, this.pos_y, this.width, this.height };
+//~       uint32 position[] = { this.pos_x, this.pos_y, this.min_width, this.min_height };
 //~       Global.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
 
     }
@@ -166,8 +169,8 @@ namespace Ltk{
       this.window_widget = window_widget;
       this.state = WindowState.unconfigured;
       this.window = Global.C.generate_id();
-      this.width = 1;
-      this.height = 1;
+      this.min_width = 1;
+      this.min_height = 1;
       uint32 values[2];
 
       this.create_pixmap(1,1);
@@ -176,7 +179,7 @@ namespace Ltk{
       values[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
 
       Global.C.create_window(Xcb.COPY_FROM_PARENT, this.window, Global.screen.root,
-                (int16)this.pos_x, (int16)this.pos_y, (uint16)this.width, (uint16)this.height, 0,
+                (int16)this.pos_x, (int16)this.pos_y, (uint16)this.min_width, (uint16)this.min_height, 0,
                 Xcb.WindowClass.INPUT_OUTPUT,
                 Global.screen.root_visual,
                 /*Xcb.CW.OVERRIDE_REDIRECT |*/ Xcb.CW.BACK_PIXMAP| Xcb.CW.EVENT_MASK,
@@ -199,7 +202,7 @@ namespace Ltk{
       Global.I.set_wm_protocols(this.window, Global.atoms.lookup(atom_names.wm_protocols), tmp_atoms);
 
 
-      this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.width, (int)this.height);
+      this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.min_width, (int)this.min_height);
       this.cr = new Cairo.Context(this.surface);
 
       Global.windows.insert(this.window,this);
@@ -240,22 +243,22 @@ namespace Ltk{
 
       var size_hints = new Xcb.Icccm.SizeHints();
       size_hints.flags=(Xcb.Icccm.SizeHint.US_SIZE|Xcb.Icccm.SizeHint.P_SIZE|Xcb.Icccm.SizeHint.BASE_SIZE);
-      size_hints.height = (int32)this.height;
-      size_hints.width  = (int32)this.width;
+      size_hints.height = (int32)this.min_height;
+      size_hints.width  = (int32)this.min_width;
       size_hints.base_height = 0;
       size_hints.base_width  = 0;
 //~       this.I.set_wm_normal_hints(this.window, size_hints);
-//~       this.surface.set_size((int)this.width,(int)this.height);
+//~       this.surface.set_size((int)this.min_width,(int)this.min_height);
     }*/
 
     private void move_resize_req(uint x,uint y,uint width,uint height){
-        uint32 position[] = { this.pos_x, this.pos_y, this.width, this.height };
+        uint32 position[] = { this.pos_x, this.pos_y, this.min_width, this.min_height };
         Global.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
     }
 
     private void resize_req(uint width,uint height){
-      this.width = width;
-      this.height = height;
+      this.min_width = width;
+      this.min_height = height;
       if(this.state == WindowState.visible){
         uint32 position[] = { width, height };
         Global.C.configure_window(this.window, ( Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
@@ -263,20 +266,20 @@ namespace Ltk{
     }
 
     public void resize(uint width,uint height){
-      this.width = width;
-      this.height = height;
+      this.min_width = width;
+      this.min_height = height;
       if(this.state == WindowState.visible){
-        this.resize_req(this.width,this.height);
+        this.resize_req(this.min_width,this.min_height);
       }
     }
 
     public void move_resize(uint x,uint y, uint width,uint height){
       this.pos_x = (int)x;
       this.pos_y = (int)y;
-      this.width = width;
-      this.height = height;
+      this.min_width = width;
+      this.min_height = height;
       if(this.state == WindowState.visible){
-        this.move_resize_req(this.pos_x, this.pos_y, this.width, this.height);
+        this.move_resize_req(this.pos_x, this.pos_y, this.min_width, this.min_height);
       }
     }
     public void set_size(uint width,uint height){
@@ -302,32 +305,32 @@ namespace Ltk{
   //~                       (int)e.event,
   //~                       (int)e.window
   //~                       );
-  //~     GLib.stderr.printf( "on_map2 w=%u h=%u \n", this.width,this.height);
-      if( (e.width == 1 && e.height == 1) && (this.width != 1 && this.height != 1))
+  //~     GLib.stderr.printf( "on_map2 w=%u h=%u \n", this.min_width,this.min_height);
+      if( (e.width == 1 && e.height == 1) && (this.min_width != 1 && this.min_height != 1))
         return;//skip first map
 
       this.pos_x = e.x;
       this.pos_y = e.y;
-      if(this.width != e.width || this.height != e.height){
-        this.width  = e.width;
-        this.height = e.height;
-        this.window_widget.width = this.width;
-        this.window_widget.height = this.height;
+      if(this.min_width != e.width || this.min_height != e.height){
+        this.min_width  = e.width;
+        this.min_height = e.height;
+        this.window_widget.min_width = this.min_width;
+        this.window_widget.min_height = this.min_height;
         this.window_widget.calculate_size_internal();
       }
       /*
        * there is no way to resize X11 pixmap,
        * we can only destroy old and create newone.
        */
-        this.create_pixmap((uint16)this.width,(uint16)this.height);
+        this.create_pixmap((uint16)this.min_width,(uint16)this.min_height);
 //~         Global.C.flush();
-//~         Global.C.create_pixmap(Global.screen.root_depth,this.pixmap,Global.screen.root,(uint16)this.width,(uint16)this.height);
+//~         Global.C.create_pixmap(Global.screen.root_depth,this.pixmap,Global.screen.root,(uint16)this.min_width,(uint16)this.min_height);
 //~       this.pixmap
-//~         this.surface.set_size((int)this.width,(int)this.height);
+//~         this.surface.set_size((int)this.min_width,(int)this.min_height);
 
-//~         this.surface.set_drawable(this.pixmap,(int)this.width,(int)this.height);
-        cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.width,(int)this.height);
-  //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.width,(int)this.height);
+//~         this.surface.set_drawable(this.pixmap,(int)this.min_width,(int)this.min_height);
+        cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.min_width,(int)this.min_height);
+  //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
 
     }
 
@@ -350,7 +353,7 @@ namespace Ltk{
                 this.window_widget.draw(this.cr);
                 this.surface.flush();
 //~                 Global.C.flush();
-                Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.width,(int16)this.height);
+                Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.min_width,(int16)this.min_height);
 //~                 Global.C.clear_area(1,this.window, (int16)0,(int16)0,(int16)e.width,(int16)e.height);
             break;
             case Xcb.CLIENT_MESSAGE:
@@ -378,7 +381,7 @@ namespace Ltk{
       this.window_widget.draw(this.cr);
       this.surface.flush();
 //~       Global.C.clear_area(1,this.window, (int16)0,(int16)0,(int16)width,(int16)height);
-      Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.width,(int16)this.height);
+      Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.min_width,(int16)this.min_height);
       Global.C.flush();
     }//clear_area
 
@@ -507,63 +510,92 @@ namespace Ltk{
   public class Widget : GLib.Object{
     public weak Widget? parent;
     public GLib.List<Widget> childs;
-    public uint width;
-    public uint height;
-    public uint x;
-    public uint y;
-    public Allocation A;
-    private ContainerFillPolicy _fill_mask;
-    public  ContainerFillPolicy  fill_mask {
-      get{
-        return _fill_mask;
-      }
+    private uint _min_width;
+    public uint min_width{
+      get{ return  this._min_width;}
       set{
-        if(value != this._fill_mask){
-          this._fill_mask = value;
-          this.size_changed(this);
+        if(value != this._min_width){
+          this._min_width = value;
+          this.size_changed(this,this.A);
         }
-      }
-      default = 0;
+        }
     }
-    private SizePolicy _size_policy;
-    public  SizePolicy  size_policy {
+    private uint _min_height;
+    public uint min_height{
+      get{ return  this._min_height;}
+      set{
+        if(value != this._min_height){
+          this._min_height = value;
+          this.size_changed(this,this.A);
+        }
+        }
+
+    }
+//~     public uint x;
+//~     public uint y;
+    public Allocation A;
+
+    public  SOptions  fill_mask {
       get{
-        return this._size_policy;
+        return ((SOptions)A.options & (SOptions.fill_horizontal | SOptions.fill_vertical));
       }
       set{
-        if(value != this._size_policy){
-          this._size_policy = value;
-          this.size_changed(this);
+        var tmp = value & (SOptions.fill_horizontal | SOptions.fill_vertical) ;
+        if(tmp != (A.options & (SOptions.fill_horizontal | SOptions.fill_vertical))){
+          var prev  = this.A;
+          this.A.options &= ~(SOptions.fill_horizontal | SOptions.fill_vertical);
+          this.A.options |= tmp;
+          this.size_changed(this,prev);
         }
       }
-      default = SizePolicy.horizontal;
+      default = 0;//do not fill
+    }
+
+    public  SOptions  place_policy {
+      get{
+        return ((SOptions)A.options & (SOptions.place_horizontal | SOptions.place_vertical));
       }
-    public signal void size_changed(Widget src);//for parents
+      set{
+        var tmp = value & (SOptions.place_horizontal | SOptions.place_vertical) ;
+        if(tmp != (A.options & (SOptions.place_horizontal | SOptions.place_vertical))){
+          var prev  = this.A;
+          this.A.options &= ~(SOptions.place_horizontal | SOptions.place_vertical);
+          this.A.options |= tmp;
+          this.size_changed(this,prev);
+        }
+      }
+      default = SOptions.place_horizontal;
+    }
+
+    public signal void size_changed(Widget src,Allocation old);//for parents
 
     public virtual uint get_prefered_width(){
-      return this.width;
+      return this.min_width;
     }
     public virtual uint get_prefered_height(){
-      return this.height;
+      return this.min_height;
     }
-    private bool  _visible;
+
     public  bool visible {
       get{
-        return this._visible;
+        return ((A.options & SOptions.visible) > 0);
       }
       set{
-        if(value != this._visible){
-          this._visible = value;
-          this.size_changed(this);
+        var prev  = this.A;
+        if( value != ((A.options & SOptions.visible) > 0) ){
+          this.A.options |= SOptions.visible;
+        }else{
+          this.A.options &= ~(SOptions.visible);
         }
-      }
-      default = false;
-      }
+        this.size_changed(this,prev);
 
+      }
+      default = true;
+    }
 
     public Widget(Widget? parent = null){
       GLib.Object();
-      this.x = this.y = 0;
+//~       this.x = this.y = 0;
       if(parent != null)
         this.parent = parent;
     }//create
@@ -598,11 +630,11 @@ namespace Ltk{
     private uint extra_height =0;
     public Container(){
       base();
-      this.fill_mask = ContainerFillPolicy.fill_height|ContainerFillPolicy.fill_width;
+      this.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
     }
 
-    private void on_size_changed(Widget src){
-        if( (src.fill_mask & Ltk.ContainerFillPolicy.fill_height) == 0 ){
+    private void on_size_changed(Widget src, Allocation prev){
+        if( (src.fill_mask & Ltk.SOptions.fill_vertical) == 0 ){
             if(this._childs_fixed_height.find(src) == null)
               this._childs_fixed_height.append(src);
         }else{
@@ -611,7 +643,7 @@ namespace Ltk{
               this._childs_fixed_height.remove(src);
         }
 
-        if( (src.fill_mask & Ltk.ContainerFillPolicy.fill_width) == 0 ){
+        if( (src.fill_mask & Ltk.SOptions.fill_horizontal) == 0 ){
             if( this._childs_fixed_width.find(src) == null)
               this._childs_fixed_width.append(src);
         }else{
@@ -619,14 +651,18 @@ namespace Ltk{
             if( elm != null)
               this._childs_fixed_width.remove(src);
         }
+
+        /*if(src.min_width > src.A.width|src.min_ > src.A.width){
+          DSFSDF
+        }*/
     }
 
     public virtual void size_request(uint new_width, uint new_height){
       bool resize_inside = false;
-      if(new_width < (this.width + this.extra_width)  ){
-        if( new_height < (this.height + this.extra_height )  ){
-          uint oldw = this.width;
-          uint oldh = this.height;
+      if(new_width < (this.min_width + this.extra_width)  ){
+        if( new_height < (this.min_height + this.extra_height )  ){
+          uint oldw = this.min_width;
+          uint oldh = this.min_height;
           this.calculate_size(ref oldw,ref oldh);
           return;
         }
@@ -645,14 +681,14 @@ namespace Ltk{
     public void add(Widget child){
       child.parent = this;
       this.childs.append(child);
-      this.on_size_changed(child);
+      this.on_size_changed(child,child.A);
       child.size_changed.connect(this.on_size_changed);
       this.update_childs_sizes();
     }
 
     public void update_childs_sizes(){
-      uint oldw = this.width;
-      uint oldh = this.height;
+      uint oldw = this.min_width;
+      uint oldh = this.min_height;
       this.calculate_size(ref oldw,ref oldh);
       this.size_request(oldw, oldh);
     }
@@ -674,13 +710,13 @@ namespace Ltk{
       int h = -1;
       uint wmin,wmax;
       this.get_width_for_height(h,out wmin,out wmax);
-      return (this.size_policy == SizePolicy.horizontal? wmax : wmin);
+      return (this.place_policy == SOptions.place_horizontal? wmax : wmin);
     }
     public override uint get_prefered_height(){
       int w = -1;
       uint hmin,hmax;
       this.get_height_for_width(w,out hmin,out hmax);
-      return (this.size_policy == SizePolicy.vertical? hmax : hmin);
+      return (this.place_policy == SOptions.place_vertical? hmax : hmin);
     }
 
     public virtual void get_height_for_width(int width,out uint height_min,out uint height_max){
@@ -688,7 +724,7 @@ namespace Ltk{
       foreach(var w in this.childs){
         _h = w.get_prefered_height();
         height_min = uint.max(height_min, _h);
-        height_max = (this.size_policy == SizePolicy.vertical ? height_max + _h : height_min);
+        height_max = (this.place_policy == SOptions.place_vertical ? height_max + _h : height_min);
       }
     }
     public virtual void get_width_for_height(int height,out uint width_min,out uint width_max){
@@ -696,11 +732,11 @@ namespace Ltk{
       foreach(var w in this.childs){
         _w = w.get_prefered_width();
         width_min = uint.max(width_min,_w);
-        width_max = (this.size_policy == SizePolicy.horizontal ? width_max + _w : width_min);
+        width_max = (this.place_policy == SOptions.place_horizontal ? width_max + _w : width_min);
       }
     }
     public virtual void calculate_size(ref uint calc_width,ref uint calc_height){
-      GLib.stderr.printf( "container calculate_size w=%u h=%u loop=%d childs=%u\n", this.width,this.height,(int)this._calculating_size,this.childs.length());
+      GLib.stderr.printf( "container calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.length());
       if(this._calculating_size)
         return;
       int _w = -1;
@@ -710,38 +746,38 @@ namespace Ltk{
         this.get_height_for_width(_w,out hmin,out hmax);
         this.get_width_for_height(_h,out wmin,out wmax);
 
-        if(this.size_policy == SizePolicy.horizontal){
-          this.width = wmax;
-          this.height = hmin;
+        if(this.place_policy == SOptions.place_horizontal){
+          this.min_width = wmax;
+          this.min_height = hmin;
         }else{
-          this.width = wmin;
-          this.height = hmax;
+          this.min_width = wmin;
+          this.min_height = hmax;
         }
 
         GLib.stderr.printf( "this.fill_mask=%d\n",this.fill_mask );
         GLib.stderr.printf( "calc_width=%u wmax=%u\n",calc_width , wmax );
         GLib.stderr.printf( "calc_height=%u hmax=%u\n",calc_height , hmax );
-        if((this.fill_mask & Ltk.ContainerFillPolicy.fill_width) > 0 && calc_width > wmax){
-          this.width = calc_width;
+        if((this.fill_mask & Ltk.SOptions.fill_horizontal) > 0 && calc_width > wmax){
+          this.min_width = calc_width;
         }
 
 
-        if((this.fill_mask & Ltk.ContainerFillPolicy.fill_height) > 0 && calc_height > hmax){
-          this.height = calc_height;
+        if((this.fill_mask & Ltk.SOptions.fill_vertical) > 0 && calc_height > hmax){
+          this.min_height = calc_height;
         }
 
-        calc_width=this.width;
-        calc_height=this.height;
+        calc_width=this.min_width;
+        calc_height=this.min_height;
 
-        if(this.size_policy == SizePolicy.horizontal){
-          GLib.stderr.printf("SizePolicy.horizontal w=%u h=%u\n",this.width,this.height);
+        if(this.place_policy == Ltk.SOptions.place_horizontal){
+          GLib.stderr.printf("SOptions.place_horizontal w=%u h=%u\n",this.min_width,this.min_height);
           //set sizes for childs
           uint _childs_fixed_width_sum = 0;
           foreach(var w in this._childs_fixed_width){
-            _childs_fixed_width_sum += w.width;
+            _childs_fixed_width_sum += w.min_width;
           }
 
-          this.extra_width = this.width - _childs_fixed_width_sum;
+          this.extra_width = this.min_width - _childs_fixed_width_sum;
           uint extra_width_delta = 0;
 
           GLib.stderr.printf("childs.length=%u _childs_fixed_width.length=%u\n",this.childs.length(),this._childs_fixed_width.length());
@@ -750,7 +786,7 @@ namespace Ltk{
           }else{
             extra_width_delta = this.extra_width;
           }
-          GLib.stderr.printf("w=%u fw=%u extra_width_delta=%u\n",this.width, _childs_fixed_width_sum, extra_width_delta);
+          GLib.stderr.printf("w=%u fw=%u extra_width_delta=%u\n",this.min_width, _childs_fixed_width_sum, extra_width_delta);
 
           foreach(var w in this.childs){
   //~           w.A.x = 0;
@@ -758,12 +794,12 @@ namespace Ltk{
             if(this._childs_fixed_width.find(w) == null){
               w.A.width = extra_width_delta;
             }else{
-              w.A.width = w.width;
+              w.A.width = w.min_width;
             }
             if(this._childs_fixed_height.find(w) == null){
-              w.A.height = this.height;
+              w.A.height = this.min_height;
             }else{
-              w.A.height = w.height;
+              w.A.height = w.min_height;
             }
             GLib.stderr.printf("A w=%u h=%u\n",w.A.width,w.A.height);
 
@@ -772,14 +808,14 @@ namespace Ltk{
             }
 
           }//foreach childs
-        }else{//SizePolicy.vertical
-          GLib.stderr.printf("SizePolicy.vertical w=%u h=%u\n",this.width,this.height);
+        }else{//SOptions.place_vertical
+          GLib.stderr.printf("SOptions.place_vertical w=%u h=%u\n",this.min_width,this.min_height);
           //set sizes for childs
           uint _childs_fixed_height_sum = 0;
           foreach(var w in this._childs_fixed_height){
-            _childs_fixed_height_sum += w.height;
+            _childs_fixed_height_sum += w.min_height;
           }
-          this.extra_height = this.height - _childs_fixed_height_sum;
+          this.extra_height = this.min_height - _childs_fixed_height_sum;
           uint extra_height_delta = 0;
 
 
@@ -791,20 +827,20 @@ namespace Ltk{
             extra_height_delta = this.extra_height;
           }
 
-          GLib.stderr.printf("h=%u fh=%u extra_height_delta=%u\n",this.height, _childs_fixed_height_sum, extra_height_delta);
+          GLib.stderr.printf("h=%u fh=%u extra_height_delta=%u\n",this.min_height, _childs_fixed_height_sum, extra_height_delta);
 
           foreach(var w in this.childs){
   //~           w.A.x = 0;
   //~           w.A.y = 0;
             if(this._childs_fixed_width.find(w) == null){
-              w.A.width = this.width;
+              w.A.width = this.min_width;
             }else{
-              w.A.width = w.width;
+              w.A.width = w.min_width;
             }
             if(this._childs_fixed_height.find(w) == null){
               w.A.height = extra_height_delta;
             }else{
-              w.A.height = w.height;
+              w.A.height = w.min_height;
             }
             GLib.stderr.printf("A w=%u h=%u\n",w.A.width,w.A.height);
 
@@ -813,7 +849,7 @@ namespace Ltk{
             }
 
           }//foreach childs
-        }//SizePolicy.vertical
+        }//SOptions.place_vertical
       this._calculating_size=false;
     }
 
@@ -831,7 +867,7 @@ namespace Ltk{
           cr.save();
   //~           GLib.stderr.printf( "childs draw %d\n",(int)w.width);
   //~           cr.move_to ();
-            if(this.size_policy == SizePolicy.horizontal){
+            if(this.place_policy == SOptions.place_horizontal){
               cr.translate (_x,(this.A.height-w.A.height)/2);
               _x+=w.A.width;
             }else{
@@ -856,7 +892,7 @@ namespace Ltk{
     public Window(){
 
       base();
-      this.width=this.height=1;
+      this.min_width=this.min_height=1;
 
       this.window = new XcbWindow(this);
 //~       return base(null);
@@ -878,23 +914,23 @@ namespace Ltk{
 
         cr.set_source_rgb(1, 0, 0);
         cr.move_to(0, 0);
-        cr.line_to(this.width, 0);
-        cr.line_to(this.width, this.height);
+        cr.line_to(this.min_width, 0);
+        cr.line_to(this.min_width, this.min_height);
         cr.close_path();
         cr.fill();
 
         cr.set_source_rgb(0, 0, 1);
         cr.set_line_width(20);
-        cr.move_to(0, this.height);
-        cr.line_to(this.width, 0);
+        cr.move_to(0, this.min_height);
+        cr.line_to(this.min_width, 0);
         cr.stroke();
-        cr.move_to( 2, this.height-10);
+        cr.move_to( 2, this.min_height-10);
         cr.show_text( text);
         cr.stroke ();
       cr.restore();
 //~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
-      this.A.width = this.width;
-      this.A.height = this.height;
+      this.A.width = this.min_width;
+      this.A.height = this.min_height;
       return base.draw(cr);
     }//draw
 
@@ -902,40 +938,40 @@ namespace Ltk{
 
 
     public void calculate_size_internal(){
-      GLib.stderr.printf( "window calculate_size w=%u h=%u loop=%d\n", this.width,this.height,(int)this._calculating_size);
+      GLib.stderr.printf( "window calculate_size w=%u h=%u loop=%d\n", this.min_width,this.min_height,(int)this._calculating_size);
 
       if(this._calculating_size)
         return;
       this._calculating_size=true;
       bool force_resize = false;
-      uint oldw = this.width;
-      uint oldh = this.height;
-      uint neww = this.width;
-      uint newh = this.height;
-      GLib.stderr.printf( "1 w=%u h=%u\n", this.width,this.height);
+      uint oldw = this.min_width;
+      uint oldh = this.min_height;
+      uint neww = this.min_width;
+      uint newh = this.min_height;
+      GLib.stderr.printf( "1 w=%u h=%u\n", this.min_width,this.min_height);
 
       this.calculate_size(ref neww,ref newh);
 
-      GLib.stderr.printf( "2 w=%u h=%u\n", this.width,this.height);
+      GLib.stderr.printf( "2 w=%u h=%u\n", this.min_width,this.min_height);
 
-      if(this.height > oldh || this.width > oldw){
+      if(this.min_height > oldh || this.min_width > oldw){
         force_resize=true;
       }
-      this.A.height = this.height = uint.max(this.height, oldh);
-      this.A.width = this.width = uint.max(this.width, oldw);
-      GLib.stderr.printf( "4 w=%u h=%u\n", this.width,this.height);
+      this.A.height = this.min_height = uint.max(this.min_height, oldh);
+      this.A.width = this.min_width = uint.max(this.min_width, oldw);
+      GLib.stderr.printf( "4 w=%u h=%u\n", this.min_width,this.min_height);
 
       /*if( (this.fill_mask & ContainerFillPolicy.fill_height) >0 && this.childs.length() > 0){
-        this.childs.first ().data.height = this.height;
+        this.childs.first ().data.height = this.min_height;
       }
 
       if( (this.fill_mask & ContainerFillPolicy.fill_width) >0 && this.childs.length() > 0){
-        this.childs.first ().data.width = this.width;
+        this.childs.first ().data.width = this.min_width;
       }*/
 
       if(force_resize){
-        GLib.stderr.printf( "3 w=%u h=%u\n", this.width,this.height);
-        this.window.resize(this.width,this.height);
+        GLib.stderr.printf( "3 w=%u h=%u\n", this.min_width,this.min_height);
+        this.window.resize(this.min_width,this.min_height);
       }
 
       this._calculating_size=false;
@@ -944,7 +980,7 @@ namespace Ltk{
 //~     public override void calculate_size(ref calc_width,ref calc_height){
 //~     }//calculate_size
     public override void size_request(uint new_width, uint new_height){
-      uint _w = this.width, _h = this.height;
+      uint _w = this.min_width, _h = this.min_height;
       if( new_width > _w  )
         _w = new_width;
       if( new_height > _h)
@@ -979,8 +1015,8 @@ namespace Ltk{
     public Button(string? label = null){
       base();
       this.label = label;
-      this.width = 50;
-      this.height = 50;
+      this.min_width = 50;
+      this.min_height = 50;
     }
     public override bool draw(Cairo.Context cr){
       GLib.stderr.printf( "Button draw %s\n",this.get_class().get_name());
@@ -989,7 +1025,7 @@ namespace Ltk{
          cr.fill ();
          if(this.label != null){
           cr.set_source_rgb(0.1, 0.1, 0.1);
-          cr.move_to(0,this.height/2);
+          cr.move_to(0,this.min_height/2);
           cr.show_text(this.label);
           }
          cr.stroke ();

@@ -1,3 +1,10 @@
+A{
+uint32 x,
+uint32 y,
+uint32 width,
+uint32 height,
+uint32 options
+}
 1) каждый обьект имеет min_width,min_height
 2) каждый объект стремится занять min_width,min_height
 3) каждый объект может менять только

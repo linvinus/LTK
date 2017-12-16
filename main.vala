@@ -25,36 +25,36 @@ int main (string[] argv) {
     Ltk.Global.Init();
 
     var window = new Ltk.Window();
-    window.size_policy = Ltk.SizePolicy.horizontal;
-    window.fill_mask |= Ltk.ContainerFillPolicy.fill_height | Ltk.ContainerFillPolicy.fill_width;
+    window.place_policy = Ltk.SOptions.place_horizontal;
+    window.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
     window.set_title("xcb_vala");
 //~     window.set_size(800,600);
     window.load_font_with_size("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",14);
 //~     window.show();
 
     var container = new Ltk.Container();
-    container.size_policy = Ltk.SizePolicy.vertical;
-    container.fill_mask |= Ltk.ContainerFillPolicy.fill_height;
+    container.place_policy = Ltk.SOptions.place_vertical;
+    container.fill_mask |= Ltk.SOptions.fill_vertical;
     var button = new Ltk.Button("1Vertical :)))");
-    button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+    button.fill_mask |= Ltk.SOptions.fill_horizontal;
     container.add(button);
 //~     button.width=300;
     button = new Ltk.Button("2Vertical :)))");
-//~     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+//~     button.fill_mask |= Ltk.SOptions.fill_width;
     container.add(button);
 //~     button.height=200;
 //~     button.width=200;
 //~     button = new Ltk.Button("3Vertical :)))");
-//~     button.fill_mask |= Ltk.ContainerFillPolicy.fill_width | Ltk.ContainerFillPolicy.fill_height;
+//~     button.fill_mask |= Ltk.SOptions.fill_width | Ltk.ContainerFillPolicy.fill_height;
 //~     container.add(button);
     bool tick = false;
     GLib.SourceFunc ontime = ()=>{
       GLib.stderr.printf("GLib.Timeout\n");
 //~       button.label += ""
       if(!tick){
-        button.width += 100;
+        button.min_width += 100;
       }else{
-        button.width -= 100;
+        button.min_width -= 100;
       }
       Ltk.Container c = (Ltk.Container)button.parent;
 //~       uint oldw = c.width;
@@ -62,7 +62,7 @@ int main (string[] argv) {
 //~       c.calculate_size(ref oldw,ref oldh);
 //~       c.size_request(oldw, oldh);
       window.update_childs_sizes();
-      window.clear_area(0,0,window.width,window.height);
+      window.clear_area(0,0,window.min_width,window.min_height);
 
       tick = !tick;
       return GLib.Source.CONTINUE;
@@ -70,10 +70,10 @@ int main (string[] argv) {
     GLib.Timeout.add(1000,ontime);
 
     var container2 = new Ltk.Container();
-    container2.size_policy = Ltk.SizePolicy.horizontal;
-    container2.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+    container2.place_policy = Ltk.SOptions.place_horizontal;
+    container2.fill_mask |= Ltk.SOptions.fill_horizontal;
     button = new Ltk.Button("1horizontal :)))");
-    button.fill_mask |= Ltk.ContainerFillPolicy.fill_width;
+    button.fill_mask |= Ltk.SOptions.fill_horizontal;
     container2.add(button);
 //~     button.width=300;
     container2.add(container);
