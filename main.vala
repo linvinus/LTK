@@ -36,12 +36,13 @@ int main (string[] argv) {
     container.place_policy = Ltk.SOptions.place_vertical;
     container.fill_mask |= Ltk.SOptions.fill_vertical;
     var button = new Ltk.Button("1Vertical :)))");
-    button.fill_mask |= Ltk.SOptions.fill_horizontal;
+//~     button.fill_mask |= Ltk.SOptions.fill_horizontal;
+    button.min_width = 51;
     container.add(button);
 //~     button.width=300;
-    button = new Ltk.Button("2Vertical :)))");
-//~     button.fill_mask |= Ltk.SOptions.fill_width;
-    container.add(button);
+    var button2 = new Ltk.Button("2Vertical :)))");
+//~     button.fill_mask |= Ltk.SOptions.fill_horizontal;
+    container.add(button2);
 //~     button.height=200;
 //~     button.width=200;
 //~     button = new Ltk.Button("3Vertical :)))");
@@ -52,22 +53,24 @@ int main (string[] argv) {
       GLib.stderr.printf("GLib.Timeout\n");
 //~       button.label += ""
       if(!tick){
-        button.min_width += 100;
+        button2.min_width += 100;
       }else{
-        button.min_width -= 100;
+        button2.min_width -= 100;
       }
+      GLib.stderr.printf("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
       Ltk.Container c = (Ltk.Container)button.parent;
 //~       uint oldw = c.width;
 //~       uint oldh = c.height;
 //~       c.calculate_size(ref oldw,ref oldh);
 //~       c.size_request(oldw, oldh);
-      window.update_childs_sizes();
-      window.clear_area(0,0,window.min_width,window.min_height);
+//~       window.update_childs_sizes();
+      GLib.stderr.printf("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
+//~       window.clear_area(0,0,window.min_width,window.min_height);
 
       tick = !tick;
       return GLib.Source.CONTINUE;
       };
-    GLib.Timeout.add(1000,ontime);
+    GLib.Timeout.add(5000,ontime);
 
     var container2 = new Ltk.Container();
     container2.place_policy = Ltk.SOptions.place_horizontal;
