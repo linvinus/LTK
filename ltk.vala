@@ -643,42 +643,45 @@ namespace Ltk{
         if(this._calculating_size)  return;
 
         int diff_width = ((int)src.min_width - (int)src.A.width);
-        if(src.min_width > src.A.width){
-          if(this.extra_width > diff_width){
+        if(src.min_width < src.A.width){
+//~           if(this.extra_width > diff_width){
             diff_width = 0; //don't request width;
-          }
+//~           }
         }
         int diff_height = ((int)src.min_height - (int)src.A.height);
 
         if(src.min_height > src.A.height){
-          if(this.extra_height > diff_height){
+//~           if(this.extra_height > diff_height){
             diff_height = 0; //don't request height;
-          }
+//~           }
         }
         GLib.stderr.printf("diff_width=%d diff_height=%d\n",diff_width,diff_height);
         if(diff_height != 0 || diff_width != 0){
-          Ltk.Widget? widget = this.parent;
-          while( widget != null){
-            if( widget is Ltk.Container ){
-              ((Ltk.Container)widget).size_request(((int)this.min_width + diff_width),((int)this.min_height + diff_height));
-              break;
-            }else{
-              widget = this.parent;
-            }
-          }
+          this.size_request(((int)this.min_width + diff_width),((int)this.min_height + diff_height));
+//~           Ltk.Widget? widget = this.parent;
+//~           while( widget != null){
+//~             if( widget is Ltk.Container ){
+//~               ((Ltk.Container)widget).
+//~               break;
+//~             }else{
+//~               widget = this.parent;
+//~             }
+//~           }
         }
     }
 
     public virtual void size_request(uint new_width, uint new_height){
       bool resize_inside = false;
-      if(new_width < (this.min_width + this.extra_width)  ){
-        if( new_height < (this.min_height + this.extra_height )  ){
-          uint oldw = this.min_width;
-          uint oldh = this.min_height;
+      GLib.stderr.printf("size_request new=%u,%u min=%u,%u A=%u,%u \n",new_width, new_height,this.min_width,this.min_height,this.A.width,this.A.height);
+      if( /*new_width >= this.min_width &&*/ (new_width <= this.A.width)   ){
+        if( /*new_height >= this.min_height &&*/ (new_height <= this.A.height)  ){
+          uint oldw = this.A.width;
+          uint oldh = this.A.height;
           this.calculate_size(ref oldw,ref oldh);
           return;
         }
       }
+      GLib.stderr.printf("size_request from parent\n");
       Ltk.Widget? widget = this.parent;
       while( widget != null){
         if( widget is Ltk.Container ){
@@ -771,17 +774,21 @@ namespace Ltk{
         GLib.stderr.printf( "this.fill_mask=%d\n",this.fill_mask );
         GLib.stderr.printf( "calc_width=%u wmax=%u\n",calc_width , this.min_width );
         GLib.stderr.printf( "calc_height=%u hmax=%u\n",calc_height , this.min_height );
-        if((this.fill_mask & Ltk.SOptions.fill_horizontal) > 0 && calc_width > this.min_width){
-          this.min_width = calc_width;
-        }
+//~         if((this.fill_mask & Ltk.SOptions.fill_horizontal) > 0 && calc_width > this.min_width){
+//~           this.min_width = calc_width;
+//~         }
 
 
-        if((this.fill_mask & Ltk.SOptions.fill_vertical) > 0 && calc_height > this.min_height){
-          this.min_height = calc_height;
-        }
+//~         if((this.fill_mask & Ltk.SOptions.fill_vertical) > 0 && calc_height > this.min_height){
+//~           this.min_height = calc_height;
+//~         }
+        if(calc_width < this.min_width)
+          calc_width = this.min_width;
+        if(calc_height < this.min_height)
+          calc_height = this.min_height;
 
-        this.A.width = calc_width = this.min_width;
-        this.A.height = calc_height = this.min_height;
+        this.A.width = calc_width;//= this.min_width;
+        this.A.height = calc_height;//= this.min_height;
 
         if(this.place_policy == Ltk.SOptions.place_horizontal){
           GLib.stderr.printf("SOptions.place_horizontal w=%u h=%u\n",this.min_width,this.min_height);

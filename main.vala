@@ -65,7 +65,7 @@ int main (string[] argv) {
 //~       c.size_request(oldw, oldh);
 //~       window.update_childs_sizes();
       GLib.stderr.printf("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
-//~       window.clear_area(0,0,window.min_width,window.min_height);
+      window.clear_area(0,0,window.min_width,window.min_height);
 
       tick = !tick;
       return GLib.Source.CONTINUE;
