@@ -209,13 +209,20 @@ namespace Ltk{
     }//XcbWindow
 
     ~XcbWindow(){
-      GLib.stderr.printf("~XcbWindow\n");
+      GLib.stderr.printf("~XcbWindow fd=%u\n",Global.C.get_file_descriptor());
       this.surface.finish();//When the last call to cairo_surface_destroy() decreases the reference count to zero, cairo will call cairo_surface_finish()
-      Global.windows.remove(this.window);
+      if(Global.windows.lookup(this.window)!=null){
+        Global.windows.remove(this.window);
+        GLib.stderr.printf("~XcbWindow %u\n",this.window);
+      }
       Global.C.free_gc(this.pixmap_gc);
       Global.C.free_pixmap(this.pixmap);
+      Global.C.unmap_window(this.window);
       Global.C.destroy_window(this.window);
-      Global.C.flush();
+      do{
+        Global.C.flush();
+      }while (  Global.C.poll_for_event() != null  );
+
     }//~XcbWindow
 
     private void show_do(){
@@ -393,7 +400,7 @@ namespace Ltk{
 //~   [SimpleType]
 //~   [CCode (has_type_id = false)]
   public struct Global{
-    public static  Xcb.Connection C;
+    public static Xcb.Connection? C;
     private static Xcb.Setup setup;
     private static unowned Xcb.Icccm.Icccm I;
     public static weak Xcb.Screen screen;
@@ -461,23 +468,24 @@ namespace Ltk{
           return false;
           }
          Xcb.GenericEvent event;
-      //~     GLib.stderr.printf( "!!!!!!!!!!!event");
+         bool _return = true;
+//~           GLib.stderr.printf( "!!!!!!!!!!!event");
       //~     while (( (event = Global.C.wait_for_event()) != null ) && !finished ) {
           while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
                  Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
-                 Global.windows.lookup(e.window).process_event(event);
+                 _return = Global.windows.lookup(e.window).process_event(event);
               break;
               case Xcb.CONFIGURE_NOTIFY:
                  Xcb.ConfigureNotifyEvent e = (Xcb.ConfigureNotifyEvent)event;
-                 Global.windows.lookup(e.window).process_event(event);
+                 _return = Global.windows.lookup(e.window).process_event(event);
               break;
              }
            Global.C.flush();
           }
-          return true;
+          return _return;
         });
   //~     var xcb_source = new GLib.Source();
   //~     xcb_source.set_name("Ltk XCB event source");
@@ -500,11 +508,10 @@ namespace Ltk{
       GLib.stderr.printf ("windows.remove_all\n");
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
       Global.windows.remove_all();
-      Global.C.flush();
-      while ( Global.C.poll_for_event() != null ){}
-
       //~     surface.finish();
     FontLoader.destroy();
+
+    GLib.stderr.printf ("Global.C.unref\n");
 //~     surface.destroy();
 //~     xcb_disconnect(c);
     }//run
@@ -513,7 +520,7 @@ namespace Ltk{
 
   /********************************************************************/
   public class Widget : GLib.Object{
-    public weak Widget? parent;
+    public weak Widget? parent = null;
     public GLib.List<Widget> childs;
     private uint _min_width;
     public uint min_width{
@@ -708,7 +715,7 @@ namespace Ltk{
     }//size_request
 
     public void add(Widget child){
-      if(this.childs.find(child) == null){
+      if(this.childs.find(child) == null && child.parent == null){
         child.parent = this;
         this.childs.append(child);
         this.on_size_changed(child,child.A);
@@ -729,6 +736,7 @@ namespace Ltk{
     public void remove(Widget child){
       if(this.childs.find(child) != null){
         this.childs.remove(child);
+        child.parent = null;
         this.update_childs_sizes();
       }
     }
