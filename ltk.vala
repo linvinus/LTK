@@ -821,9 +821,7 @@ namespace Ltk{
   /********************************************************************/
   public class Container: Widget{
     private bool _calculating_size = false;
-//~     private uint extra_width  =0;
-//~     private uint extra_height =0;
-    public uint size_changed_serial = 0;
+    public uint size_changed_serial = 0;//public for window class
     private uint size_update_width_serial = 0;
     private uint size_update_height_serial = 0;
     private uint size_update_childs = 0;
@@ -832,7 +830,7 @@ namespace Ltk{
       this.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
     }
 
-    private void on_size_changed(Widget src, Allocation prev){
+    private void on_child_size_changed(Widget src, Allocation prev){
 
         if(this._calculating_size)  return;
         this.size_changed_serial++;
@@ -866,70 +864,34 @@ namespace Ltk{
 
         if(diff_height != 0 || diff_width != 0){
             this.update_childs_sizes();
-
-//~           this.size_request(((int)this.min_width + diff_width),((int)this.min_height + diff_height));
-//~           Ltk.Widget? widget = this.parent;
-//~           while( widget != null){
-//~             if( widget is Ltk.Container ){
-//~               ((Ltk.Container)widget).
-//~               break;
-//~             }else{
-//~               widget = this.parent;
-//~             }
-//~           }
         }
     }
-
-    public virtual void size_request(uint new_width, uint new_height){
-      bool resize_inside = false;
-      GLib.stderr.printf("size_request new=%u,%u min=%u,%u A=%u,%u childs=%u\n",new_width, new_height,this.min_width,this.min_height,this.A.width,this.A.height,this.childs.count);
-      if( /*new_width >= this.min_width &&*/ (new_width <= this.A.width)   ){
-        if( /*new_height >= this.min_height &&*/ (new_height <= this.A.height)  ){
-          uint oldw = this.A.width;
-          uint oldh = this.A.height;
-          this.calculate_size(ref oldw,ref oldh,this);
-          return;
-        }
-      }
-      GLib.stderr.printf("size_request from parent\n");
-      Ltk.Widget? widget = this.parent;
-      while( widget != null){
-        if( widget is Ltk.Container ){
-          ((Ltk.Container)widget).size_request(new_width, new_height);
-          break;
-        }else{
-          widget = this.parent;
-        }
-      }
-    }//size_request
 
     public void add(Widget child){
       if(this.childs.find(child) == null && child.parent == null){
         child.parent = this;
         this.childs.append(child);
-        this.on_size_changed(child,child.A);
-        child.size_changed.connect(this.on_size_changed);
+        this.on_child_size_changed(child,child.A);
+        child.size_changed.connect(this.on_child_size_changed);
         this.update_childs_sizes();
       }
-    }
-
-    public virtual void update_childs_sizes(){
-
-      uint oldw = this.A.width;
-      uint oldh = this.A.height;
-      this.calculate_size(ref oldw,ref oldh,this);
-//~       this.A.width = oldw;
-//~       this.A.height = oldh;
-//~       this.size_request(oldw, oldh);
-    }
+    }//add
 
     public void remove(Widget child){
       if(this.childs.find(child) != null){
         this.childs.remove(child);
         child.parent = null;
+        this.size_changed_serial++;
         this.update_childs_sizes();
       }
-    }
+    }//remove
+
+    private void update_childs_sizes(){
+      uint oldw = this.A.width;
+      uint oldh = this.A.height;
+      this.calculate_size(ref oldw,ref oldh,this);
+    }//update_childs_sizes
+
 
     public override uint get_prefered_width(){
       int h = -1;
@@ -937,14 +899,15 @@ namespace Ltk{
       this.get_width_for_height(h,out wmin,out wmax);
       this.min_width = (this.place_policy == SOptions.place_horizontal? wmax : wmin);
       return this.min_width;
-    }
+    }//get_prefered_width
+
     public override uint get_prefered_height(){
       int w = -1;
       uint hmin,hmax;
       this.get_height_for_width(w,out hmin,out hmax);
       this.min_height = (this.place_policy == SOptions.place_vertical? hmax : hmin);
       return this.min_height;
-    }
+    }//get_prefered_height
 
     public virtual void get_height_for_width(int width,out uint height_min,out uint height_max){
       uint _h;
@@ -959,7 +922,8 @@ namespace Ltk{
         height_min = this.min_height;
         height_max = height_min;//uint.max(this.A.height,height_min);
       }
-    }
+    }//get_height_for_width
+
     public virtual void get_width_for_height(int height,out uint width_min,out uint width_max){
       uint _w;
       if(this.size_update_width_serial != this.size_changed_serial){
@@ -967,7 +931,7 @@ namespace Ltk{
           _w = w.get_prefered_width();
           width_min = uint.max( width_min, _w );
           width_max = (this.place_policy == SOptions.place_horizontal ? width_max + _w : width_min);
-          GLib.stderr.printf( "get_width_for_height1 min=%u max=%u label=%s\n",_w,width_max, ( (w is Button ) ? ((Button)w).label: "") );
+          GLib.stderr.printf( "get_width_for_height1 min=%u max=%u %s\n",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_width_serial = this.size_changed_serial;
       }else{
@@ -975,7 +939,8 @@ namespace Ltk{
         width_max = width_min;//uint.max(this.A.width,width_min);
       }
       GLib.stderr.printf( "get_width_for_height2 min=%u max=%u\n",width_min,width_max);
-    }
+    }//get_width_for_height
+
     public virtual void calculate_size(ref uint calc_width,ref uint calc_height, Widget calc_initiator){
       GLib.stderr.printf( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
 
@@ -1140,7 +1105,7 @@ namespace Ltk{
       GLib.stderr.printf( "container end calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
 
       this._calculating_size=false;
-    }
+    }//calculate_size
 
     public override bool draw(Cairo.Context cr){
         uint len = this.childs.count;
@@ -1170,7 +1135,8 @@ namespace Ltk{
 
         }//foreach
         return base.draw(cr);
-      }
+      }//draw
+
   }//class container
   /********************************************************************/
   public class Window: Container{
@@ -1184,11 +1150,7 @@ namespace Ltk{
       this.min_width=this.min_height=1;
 
       this.window = new XcbWindow();
-      this.window.size_changed.connect((_w,_h)=>{
-        uint w=_w,h=_h;
-        this.size_changed_serial++;
-        this.calculate_size(ref w,ref h,this);
-        });
+      this.window.size_changed.connect(on_xcb_window_size_change);
       this.window.draw.connect(this.draw);
 //~       return base(null);
     }
@@ -1197,10 +1159,6 @@ namespace Ltk{
       GLib.stderr.printf("~Window\n");
     }
 
-    public void set_size(uint width,uint height){
-        GLib.stderr.printf("window set_size=%u,%u\n",width,height);
-        this.window.resize(width,height);
-    }
 
     public override bool draw(Cairo.Context cr){
       string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
@@ -1230,14 +1188,16 @@ namespace Ltk{
       return base.draw(cr);
     }//draw
 
+    private void on_xcb_window_size_change(uint width,uint height){
+        this.size_changed_serial++;
+        this.calculate_size(ref width,ref height,this);
+    }
 
     public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget calc_initiator){
       GLib.stderr.printf( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       this._calculating_size=true;
       uint oldw = this.A.width;
       uint oldh = this.A.height;
-//~       this.A.width = calc_width;
-//~       this.A.height = calc_height;
       base.calculate_size(ref calc_width,ref calc_height, calc_initiator);
       GLib.stderr.printf( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       if(calc_width != oldw||
@@ -1249,69 +1209,13 @@ namespace Ltk{
       this._calculating_size=false;
     }
 
-   /* public void calculate_size_internal(){
-      GLib.stderr.printf( "window calculate_size min=%u,%u A=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,(int)this._calculating_size);
 
-      if(this._calculating_size)
-        return;
-      this._calculating_size=true;
-      bool force_resize = false;
-      uint oldw = this.A.width;
-      uint oldh = this.A.height;
-      uint neww = oldw;
-      uint newh = oldh;
-      GLib.stderr.printf( "1 w=%u h=%u\n", this.min_width,this.min_height);
-
-      this.calculate_size(ref neww,ref newh);
-
-      GLib.stderr.printf( "2 w=%u h=%u\n", this.min_width,this.min_height);
-
-      if(this.min_height > oldh || this.min_width > oldw){
-        force_resize=true;
-      }
-      //this.A.height =
-      this.min_height = uint.max(this.min_height, oldh);
-      //this.A.width =
-      this.min_width = uint.max(this.min_width, oldw);
-      GLib.stderr.printf( "4 w=%u h=%u\n", this.min_width,this.min_height);
-
-      /*if( (this.fill_mask & ContainerFillPolicy.fill_height) >0 && this.childs.length() > 0){
-        this.childs.first ().data.height = this.min_height;
-      }
-
-      if( (this.fill_mask & ContainerFillPolicy.fill_width) >0 && this.childs.length() > 0){
-        this.childs.first ().data.width = this.min_width;
-      }*/
-
-/*      if(force_resize){
-        GLib.stderr.printf( "3 w=%u h=%u\n", this.min_width,this.min_height);
-        this.window.resize(this.min_width,this.min_height);
-      }
-
-      this._calculating_size=false;
-
-    }*/
-
-//~     public override void calculate_size(ref calc_width,ref calc_height){
-//~     }//calculate_size
-    public override void size_request(uint new_width, uint new_height){
-        GLib.stderr.printf( "window size_request=%u,%u\n", new_width,new_height);
-
+    public void size_request(uint new_width, uint new_height){
+      GLib.stderr.printf( "window size_request=%u,%u\n", new_width,new_height);
       if(this.A.width != new_width || this.A.height != new_height){
-        uint _w = this.min_width, _h = this.min_height;
-  //~       if( new_width > _w  )
-          _w = new_width;
-  //~       if( new_height > _h)
-          _h = new_height;
-        this.set_size(_w,_h);
+        this.window.resize(new_width,new_height);
       }
     }
-
-    public override void update_childs_sizes(){
-      base.update_childs_sizes();
-      this.size_request(this.A.width, this.A.height);
-    }
-
 
     public void set_title(string title){
       this.window.set_title(title);
