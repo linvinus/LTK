@@ -144,6 +144,7 @@ namespace Ltk{
     private GLib.List<unowned Widget> _fixed_width;
     private GLib.List<unowned Widget> _fixed_height;
     public GLib.List<unowned Widget> _variable_width;
+    public GLib.List<unowned Widget> _variable_height;
     private uint _count;
     private uint _fixed_width_count;
     private uint _fixed_height_count;
@@ -193,6 +194,7 @@ namespace Ltk{
       this._fixed_width = new GLib.List<Widget>();
       this._fixed_height = new GLib.List<Widget>();
       this._variable_width = new GLib.List<Widget>();
+      this._variable_height = new GLib.List<Widget>();
     }
     public WidgetListIter iterator (){
       return WidgetListIter(this.childs.first());
@@ -249,12 +251,20 @@ namespace Ltk{
             this._fixed_height.append(src);
             this._fixed_height_count++;
           }
+          if( this._variable_height.find(src) != null){
+            this._variable_height.remove(src);
+          }
+
       }else{
           if( this._fixed_height.find(src) != null){
             this._fixed_height.remove(src);
             this._fixed_height_count--;
           }
+          if( this._variable_height.find(src) == null){
+            this._variable_height.append(src);
+          }
       }
+      this._variable_height.sort((GLib.CompareFunc<weak Ltk.Widget>)CompareWidth);
 
     }//on_size_changed
 
@@ -1015,31 +1025,61 @@ namespace Ltk{
         }else{//SOptions.place_vertical
           GLib.stderr.printf("SOptions.place_vertical min=%u,%u A=%u,%u\n",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
-          uint extra_height_delta = 0;
+          uint extra_height_delta = this.A.height;
 
           GLib.stderr.printf("childs.length=%u \n",this.childs.count);
-          extra_height_delta = (this.A.height - this.min_height)/this.childs.count;
+
+          if(extra_height_delta > this.min_height){
+            extra_height_delta -= this.childs.fixed_height;
+            extra_height_delta = extra_height_delta/(this.childs.count-this.childs.fixed_height_count);
+          }else{
+            extra_height_delta = 0;
+          }
+
           GLib.stderr.printf("h=%u extra_height_delta=%u\n",this.A.height, extra_height_delta);
 
 
-          foreach(var w in this.childs){
+          //_variable_height is sorted,first bigger then smaller
+          foreach(var w in this.childs._variable_height){
+
   //~           w.A.x = 0;
   //~           w.A.y = 0;
+            uint new_width = 0;
+            uint new_height = 0;
+
+            if( (w.fill_mask & Ltk.SOptions.fill_vertical) > 0 ){
+              if( extra_height_delta >= w.min_height){
+                new_height = extra_height_delta;
+              }else{
+                new_height = w.min_height;
+                //100 | 100
+                //x   | 150
+                if(extra_height_delta > 0){
+                  uint dela_minus = (w.min_height-extra_height_delta);
+                  if(extra_height_delta > dela_minus){
+                    extra_height_delta -= dela_minus;
+                  }else{
+                    extra_height_delta = 0;//hmm, something wrong
+                  }
+                }
+              }
+            }else{
+                new_height = w.min_height;
+            }
 
             if((w.fill_mask & Ltk.SOptions.fill_horizontal) > 0){
-              w.A.width = this.min_width;
+              new_width = this.min_width;
             }else{
-              w.A.width = w.get_prefered_width();
+              new_width = w.get_prefered_width();
             }
-            if((w.fill_mask & Ltk.SOptions.fill_vertical) > 0 ){
-              w.A.height = w.min_height + extra_height_delta;
-            }else{
-              w.A.height = w.min_height;
-            }
+
             GLib.stderr.printf("A w=%u h=%u\n",w.A.width,w.A.height);
 
             if(w is Ltk.Container){
-              ((Ltk.Container)w).calculate_size(ref w.A.width,ref w.A.height,this);
+              ((Ltk.Container)w).calculate_size(ref new_width,ref new_height, this);
+            }else{
+              w.A.width = new_width;
+              w.A.height = new_height;
             }
             w.A.options ^= w.A.options;
             w.A.options |= w.place_policy;
