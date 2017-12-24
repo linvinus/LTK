@@ -128,7 +128,7 @@ namespace Ltk{
     private int CompareWidth (Widget? a, Widget? b){
       if(a == null || b == null)
         return 0;
-      GLib.stderr.printf("  ### a=%u > b=%u\n", a.min_width , b.min_width);
+//~       GLib.stderr.printf("  ### a=%u > b=%u\n", a.min_width , b.min_width);
       if(a.min_width < b.min_width){
         return 1;
       }else if(a.min_width > b.min_width){
@@ -443,6 +443,14 @@ namespace Ltk{
       }
     }
 
+    public void resize_and_remember(uint width,uint height){
+      this.resize(width,height);
+      if(this.state == WindowState.visible){
+        this.min_width = width;
+        this.min_height = height;
+      }
+    }
+
     public void resize(uint width,uint height){
       if(this.state == WindowState.visible){
         this.resize_req(width,height);
@@ -493,9 +501,11 @@ namespace Ltk{
       if(this.min_width != e.width || this.min_height != e.height){
         this.min_width  = e.width;
         this.min_height = e.height;
-        this.window_widget.A.width = this.min_width;
-        this.window_widget.A.height = this.min_height;
-        this.window_widget.calculate_size_internal();
+//~         this.window_widget.A.width = this.min_width;
+//~         this.window_widget.A.height = this.min_height;
+        uint _w = this.min_width;
+        uint _h = this.min_height;
+        this.window_widget.calculate_size(ref _w,ref _h);
       }
       GLib.stderr.printf( "on_configure2 w=%u h=%u \n", this.min_width,this.min_height);
 
@@ -816,6 +826,7 @@ namespace Ltk{
     private uint size_changed_serial = 0;
     private uint size_update_width_serial = 0;
     private uint size_update_height_serial = 0;
+    private uint size_update_childs = 0;
     public Container(){
       base();
       this.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
@@ -828,6 +839,11 @@ namespace Ltk{
 
         int diff_width = ((int)src.min_width - (int)src.A.width);
         int diff_height = ((int)src.min_height - (int)src.A.height);
+
+        if( (src.fill_mask & Ltk.SOptions.fill_horizontal) == 0)
+          src.A.width = src.min_width;//set default size for fixed widget
+        if( (src.fill_mask & Ltk.SOptions.fill_vertical) == 0)
+          src.A.height = src.min_height; //set default size for fixed widget
 
 //~         if( diff_width < 0 && (this.fill_mask & Ltk.SOptions.fill_horizontal)>0){
 //~           diff_width = 0;//ignore if size lowering
@@ -961,7 +977,8 @@ namespace Ltk{
       GLib.stderr.printf( "get_width_for_height2 min=%u max=%u\n",width_min,width_max);
     }
     public virtual void calculate_size(ref uint calc_width,ref uint calc_height){
-      GLib.stderr.printf( "container calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
+      GLib.stderr.printf( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
+
       if(this._calculating_size)
         return;
       int _w = -1;
@@ -973,7 +990,8 @@ namespace Ltk{
       this.get_prefered_height();
       this.get_prefered_width();
 
-      if(this.A.width >= this.min_width &&
+      if( this.size_changed_serial == this.size_update_childs &&
+         this.A.width >= this.min_width &&
          this.A.height >= this.min_height &&
          this.A.width == calc_width &&
          this.A.height == calc_height){
@@ -981,6 +999,7 @@ namespace Ltk{
             GLib.stderr.printf( "container quick end. calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
             return;
       }
+      this.size_update_childs = this.size_changed_serial;
 //~         this.get_height_for_width(_w,out hmin,out hmax);
 //~         this.get_width_for_height(_h,out wmin,out wmax);
 
@@ -1008,9 +1027,9 @@ namespace Ltk{
         if(calc_height < this.min_height)
           calc_height = this.min_height;
 
-        if(this.A.width == 0)
+//~         if(this.A.width == 0)
           this.A.width = calc_width;//= this.min_width;
-        if(this.A.height == 0)
+//~         if(this.A.height == 0)
           this.A.height = calc_height;//= this.min_height;
 
         if(this.place_policy == Ltk.SOptions.place_horizontal){
@@ -1036,21 +1055,19 @@ namespace Ltk{
 
           GLib.stderr.printf("w=%u extra_width_delta=%u\n",this.A.width, extra_width_delta);
 
-          foreach(var w in this.childs){
-              w.A.width = w.min_width;
-              w.A.height = w.min_height;
-          }
           //_variable_width is sorted,first bigger then smallier
           foreach(var w in this.childs._variable_width){
 
   //~           w.A.x = 0;
   //~           w.A.y = 0;
+            uint new_width = 0;
+            uint new_height = 0;
 
             if( (w.fill_mask & Ltk.SOptions.fill_horizontal) > 0 ){
               if( extra_width_delta >= w.min_width){
-                w.A.width = extra_width_delta;
+                new_width = extra_width_delta;
               }else{
-                w.A.width = w.min_width;
+                new_width = w.min_width;
                 //100 | 100
                 //x   | 150
                 if(extra_width_delta > 0){
@@ -1063,17 +1080,20 @@ namespace Ltk{
                 }
               }
             }else{
-                w.A.width = w.min_width;
+                new_width = w.min_width;
             }
             if((w.fill_mask & Ltk.SOptions.fill_vertical) > 0){
-              w.A.height = this.min_height;
+              new_height = this.min_height;
             }else{
-              w.A.height = w.min_height;
+              new_height = w.min_height;
             }
-            GLib.stderr.printf("A w=%u h=%u\n",w.A.width,w.A.height);
+            GLib.stderr.printf("A w=%u h=%u\n",new_width,new_height);
 
             if(w is Ltk.Container){
-              ((Ltk.Container)w).calculate_size(ref w.A.width,ref w.A.height);
+              ((Ltk.Container)w).calculate_size(ref new_width,ref new_height);
+            }else{
+              w.A.width = new_width;
+              w.A.height = new_height;
             }
 
             w.A.options ^= w.A.options;
@@ -1170,6 +1190,7 @@ namespace Ltk{
     }
 
     public void set_size(uint width,uint height){
+        GLib.stderr.printf("window set_size=%u,%u\n",width,height);
         this.window.resize(width,height);
     }
 
@@ -1203,15 +1224,24 @@ namespace Ltk{
 
 
     public override void calculate_size(ref uint calc_width,ref uint calc_height){
-      GLib.stderr.printf( "window calculate_size\n");
+      GLib.stderr.printf( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      this._calculating_size=true;
+      uint oldw = this.A.width;
+      uint oldh = this.A.height;
+//~       this.A.width = calc_width;
+//~       this.A.height = calc_height;
       base.calculate_size(ref calc_width,ref calc_height);
-      if(calc_width >this.A.width||
-         calc_height >this.A.height){
-           this.window.resize(calc_width,calc_height);
+      GLib.stderr.printf( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      if(calc_width != oldw||
+         calc_height != oldh){
+           this.window.resize_and_remember(calc_width,calc_height);
+           this.A.width = calc_width;
+           this.A.height = calc_height;
       }
+      this._calculating_size=false;
     }
 
-    public void calculate_size_internal(){
+   /* public void calculate_size_internal(){
       GLib.stderr.printf( "window calculate_size min=%u,%u A=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,(int)this._calculating_size);
 
       if(this._calculating_size)
@@ -1245,27 +1275,28 @@ namespace Ltk{
         this.childs.first ().data.width = this.min_width;
       }*/
 
-      if(force_resize){
+/*      if(force_resize){
         GLib.stderr.printf( "3 w=%u h=%u\n", this.min_width,this.min_height);
         this.window.resize(this.min_width,this.min_height);
       }
 
       this._calculating_size=false;
 
-    }
+    }*/
+
 //~     public override void calculate_size(ref calc_width,ref calc_height){
 //~     }//calculate_size
     public override void size_request(uint new_width, uint new_height){
+        GLib.stderr.printf( "window size_request=%u,%u\n", new_width,new_height);
 
-//~       if(this.A.width != new_width || this.A.height != new_height){
+      if(this.A.width != new_width || this.A.height != new_height){
         uint _w = this.min_width, _h = this.min_height;
   //~       if( new_width > _w  )
           _w = new_width;
   //~       if( new_height > _h)
           _h = new_height;
-        GLib.stderr.printf( "window size_request=%u,%u\n", _w,_h);
         this.set_size(_w,_h);
-//~       }
+      }
     }
 
     public override void update_childs_sizes(){
