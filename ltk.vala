@@ -140,14 +140,15 @@ namespace Ltk{
 
 
   public class  WidgetList {
-    private GLib.List<Widget> childs;
+    private GLib.List<Widget> _childs;
     private GLib.List<unowned Widget> _fixed_width;
     private GLib.List<unowned Widget> _fixed_height;
-    public GLib.List<unowned Widget> _variable_width;
-    public GLib.List<unowned Widget> _variable_height;
+    private GLib.List<unowned Widget> _variable_width;
+    private GLib.List<unowned Widget> _variable_height;
     private uint _count;
     private uint _fixed_width_count;
     private uint _fixed_height_count;
+
     public uint count{
       get { return _count;}
     }
@@ -176,28 +177,28 @@ namespace Ltk{
       }
     }
 
-    public uint allocated_width{
-      get{
-        uint w_sum = 0;
-        foreach(var w in this.childs){
-          w_sum += w.A.width;
-        }
-        return w_sum;
-      }
-    }
-
     public WidgetList(){
       this._count = 0;
       this._fixed_width_count = 0;
       this._fixed_height_count = 0;
-      this.childs = new GLib.List<Widget>();
+      this._childs = new GLib.List<Widget>();
       this._fixed_width = new GLib.List<Widget>();
       this._fixed_height = new GLib.List<Widget>();
       this._variable_width = new GLib.List<Widget>();
       this._variable_height = new GLib.List<Widget>();
     }
     public WidgetListIter iterator (){
-      return WidgetListIter(this.childs.first());
+      return WidgetListIter(this._childs.first());
+    }
+
+    public unowned GLib.List<unowned Widget> variable_width(){
+      unowned GLib.List r = this._variable_width.first();
+      return r;
+    }
+
+    public unowned GLib.List<unowned Widget> variable_height(){
+      unowned GLib.List r = this._variable_height.first();
+      return r;
     }
 
     public void remove_all(){
@@ -206,7 +207,7 @@ namespace Ltk{
 //~       this.childs.remove_all();
     }
     public void append (owned Widget child){
-      this.childs.append(child);
+      this._childs.append(child);
       this._count++;
       var a = new Allocation();
       this.on_size_changed(child,a);
@@ -221,7 +222,7 @@ namespace Ltk{
         this._fixed_height.remove(child);
         this._fixed_height_count--;
       }
-      this.childs.remove(child);
+      this._childs.remove(child);
       this._count--;
     }
 
@@ -272,7 +273,7 @@ namespace Ltk{
 //~       return this._count;
 //~     }
     public unowned List<Widget> find (Widget data){
-      return this.childs.find(data);
+      return this._childs.find(data);
     }
 
   }//class WidgetList
@@ -977,7 +978,7 @@ namespace Ltk{
           GLib.stderr.printf("w=%u extra_width_delta=%u\n",this.A.width, extra_width_delta);
 
           //_variable_width is sorted,first bigger then smaller
-          foreach(var w in this.childs._variable_width){
+          foreach(var w in this.childs.variable_width()){
 
   //~           w.A.x = 0;
   //~           w.A.y = 0;
@@ -1040,7 +1041,7 @@ namespace Ltk{
 
 
           //_variable_height is sorted,first bigger then smaller
-          foreach(var w in this.childs._variable_height){
+          foreach(var w in this.childs.variable_height()){
 
   //~           w.A.x = 0;
   //~           w.A.y = 0;
