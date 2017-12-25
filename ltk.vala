@@ -311,6 +311,8 @@ namespace Ltk{
     private int pos_y = -1;
     private uint min_width;
     private uint min_height;
+    private Allocation damage_region;
+    private uint draw_callback_timer;
 
     private void create_pixmap(uint16 width, uint16 height){
       if(this.pixmap != 0){
@@ -346,7 +348,14 @@ namespace Ltk{
       this.create_pixmap(1,1);
 
       values[0] = this.pixmap;
-      values[1] = Xcb.EventMask.EXPOSURE|Xcb.EventMask.VISIBILITY_CHANGE|Xcb.EventMask.STRUCTURE_NOTIFY;
+      values[1] = Xcb.EventMask.EXPOSURE |
+                  Xcb.EventMask.VISIBILITY_CHANGE|
+                  Xcb.EventMask.STRUCTURE_NOTIFY|
+                  Xcb.EventMask.BUTTON_PRESS|
+                  Xcb.EventMask.BUTTON_RELEASE|
+                  Xcb.EventMask.POINTER_MOTION|
+                  Xcb.EventMask.KEY_PRESS|
+                  Xcb.EventMask.KEY_RELEASE;
 
       Global.C.create_window(Xcb.COPY_FROM_PARENT, this.window, Global.screen.root,
                 (int16)this.pos_x, (int16)this.pos_y, (uint16)this.min_width, (uint16)this.min_height, 0,
@@ -539,12 +548,8 @@ namespace Ltk{
                  Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
                 if (e.count != 0)
                     break;
-
-                this.draw(this.cr);
-                this.surface.flush();
-//~                 Global.C.flush();
-                Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.min_width,(int16)this.min_height);
-//~                 Global.C.clear_area(1,this.window, (int16)0,(int16)0,(int16)e.width,(int16)e.height);
+//~                 GLib.stderr.printf( "!!!!!!!!!!!event xy=%u,%u %ux%u count=%u\n",e.x, e.y, e.width, e.height,e.count);
+                this.damage(e.x, e.y, e.width, e.height);
             break;
             case Xcb.CLIENT_MESSAGE:
                 Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
@@ -559,6 +564,26 @@ namespace Ltk{
                 if(event.response_type == Xcb.CONFIGURE_NOTIFY)
                   this.on_configure((Xcb.ConfigureNotifyEvent)event);
             break;
+            case Xcb.MOTION_NOTIFY:
+               Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
+               this.on_mouse_move((uint) e.event_x, (uint) e.event_y);
+            break;
+            case Xcb.ENTER_NOTIFY:
+               Xcb.EnterNotifyEvent e = (Xcb.EnterNotifyEvent)event;
+               this.on_mouse_enter((uint) e.event_x, (uint) e.event_y);
+            break;
+            case Xcb.LEAVE_NOTIFY:
+               Xcb.LeaveNotifyEvent e = (Xcb.LeaveNotifyEvent)event;
+               this.on_mouse_leave((uint) e.event_x, (uint) e.event_y);
+            break;
+            case Xcb.KEY_PRESS:
+               Xcb.KeyPressEvent e = (Xcb.KeyPressEvent)event;
+               this.on_key_press((uint) e.detail, (uint) e.state);
+            break;
+            case Xcb.KEY_RELEASE:
+               Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
+               this.on_key_release((uint) e.detail, (uint) e.state);
+            break;
           }//switch
   //~         free(event);
 //~           Global.C.flush();
@@ -566,17 +591,60 @@ namespace Ltk{
       return _continue;
     }//process_event
 
-    public void clear_area(uint x,uint y,uint width,uint height){
-//~       Global.C.clear_area(1,this.window, (int16)x,(int16)y,(int16)width,(int16)height);
+    public void draw_area(uint x,uint y,uint width,uint height){
+      if(x > this.min_width ) x = this.min_width;
+      if(y > this.min_height ) y = this.min_height;
+      if((x + width) > this.min_width ) width = this.min_width - x;
+      if((y + height) > this.min_height ) height = this.min_height - y;
+      cr.save();
+      cr.rectangle (x, y, width, height);
+      cr.clip ();
       this.draw(this.cr);
+      cr.restore();
       this.surface.flush();
-//~       Global.C.clear_area(1,this.window, (int16)0,(int16)0,(int16)width,(int16)height);
-      Global.C.copy_area(this.pixmap,this.window,this.pixmap_gc, (int16)0,(int16)0,0,0,(int16)this.min_width,(int16)this.min_height);
+      Global.C.copy_area(this.pixmap,
+                         this.window,
+                         this.pixmap_gc,
+                         (int16)x,
+                         (int16)y,
+                         (int16)x,
+                         (int16)y,
+                         (int16)width,
+                         (int16)height);
       Global.C.flush();
     }//clear_area
 
+    public void damage(uint x,uint y,uint width,uint height){
+      this.damage_region.x = uint.min(this.damage_region.x, x);
+      this.damage_region.y = uint.min(this.damage_region.y, y);
+      this.damage_region.width = uint.max(this.damage_region.width, x+width);//x2
+      this.damage_region.height = uint.max(this.damage_region.height, y+height);//y2
+      this.queue_draw();
+    }
+
+    private bool on_draw(){
+      this.draw_area(this.damage_region.x,
+                     this.damage_region.y,
+                     this.damage_region.width-this.damage_region.x,
+                     this.damage_region.height-this.damage_region.y );
+      this.draw_callback_timer = this.damage_region.x = this.damage_region.y = this.damage_region.width = this.damage_region.height = 0;
+      return GLib.Source.REMOVE;//done
+    }
+
+    public void queue_draw(){
+      if(this.draw_callback_timer == 0){
+//~         GLib.Source.remove(draw_callback_timer);
+        this.draw_callback_timer = GLib.Timeout.add((1000/30),on_draw);
+      }
+    }
+
     public signal void size_changed(uint width,uint height);//for parents
     public signal bool draw(Cairo.Context cr);
+    public signal bool on_mouse_move(uint x, uint y);
+    public signal bool on_mouse_enter(uint x, uint y);
+    public signal bool on_mouse_leave(uint x, uint y);
+    public signal bool on_key_press(uint keycode, uint state);
+    public signal bool on_key_release(uint keycode, uint state);
   }//calss XcbWindow
   /********************************************************************/
 //~   [SimpleType]
@@ -652,8 +720,21 @@ namespace Ltk{
          Xcb.GenericEvent event;
          bool _return = true;
 //~           GLib.stderr.printf( "!!!!!!!!!!!event");
-      //~     while (( (event = Global.C.wait_for_event()) != null ) && !finished ) {
+          /**
+           * @brief Bit mask to find event type regardless of event source.
+           *
+           * Each event in the X11 protocol contains an 8-bit type code.
+           * The most-significant bit in this code is set if the event was
+           * generated from a SendEvent request. This mask can be used to
+           * determine the type of event regardless of how the event was
+           * generated. See the X11R6 protocol specification for details.
+           */
+          /*#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
+          #define XCB_EVENT_RESPONSE_TYPE(e)   (e->response_type &  XCB_EVENT_RESPONSE_TYPE_MASK)
+          #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
+
           while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
+//~             GLib.stderr.printf( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
@@ -663,6 +744,26 @@ namespace Ltk{
               case Xcb.CONFIGURE_NOTIFY:
                  Xcb.ConfigureNotifyEvent e = (Xcb.ConfigureNotifyEvent)event;
                  _return = Global.windows.lookup(e.window).process_event(event);
+              break;
+              case Xcb.MOTION_NOTIFY:
+                 Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
+                 _return = Global.windows.lookup(e.event).process_event(event);
+              break;
+              case Xcb.ENTER_NOTIFY:
+                 Xcb.EnterNotifyEvent e = (Xcb.EnterNotifyEvent)event;
+                 _return = Global.windows.lookup(e.event).process_event(event);
+              break;
+              case Xcb.LEAVE_NOTIFY:
+                 Xcb.LeaveNotifyEvent e = (Xcb.LeaveNotifyEvent)event;
+                 _return = Global.windows.lookup(e.event).process_event(event);
+              break;
+              case Xcb.KEY_PRESS:
+                 Xcb.KeyPressEvent e = (Xcb.KeyPressEvent)event;
+                 _return = Global.windows.lookup(e.event).process_event(event);
+              break;
+              case Xcb.KEY_RELEASE:
+                 Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
+                 _return = Global.windows.lookup(e.event).process_event(event);
               break;
              }
            Global.C.flush();
@@ -675,7 +776,6 @@ namespace Ltk{
   //~     xcb_source.add_unix_fd(,GLib.IOCondition.IN);
   //~     xcb_source.set_can_recurse(true);
   //~     xcb_source.attach(loop.get_context ());
-
 
     }//constructor
 
@@ -818,6 +918,11 @@ namespace Ltk{
     public virtual void hide(){
       this.visible = false;
     }
+    public virtual bool on_mouse_move(uint x, uint y){return true;}
+    public virtual bool on_mouse_enter(uint x, uint y){return true;}
+    public virtual bool on_mouse_leave(uint x, uint y){return true;}
+    public virtual bool on_key_press(uint keycode, uint state){return true;}
+    public virtual bool on_key_release(uint keycode, uint state){return true;}
   }
   /********************************************************************/
   public class Container: Widget{
@@ -1128,6 +1233,7 @@ namespace Ltk{
     private XcbWindow window;
     private bool _calculating_size = false;
     private string? title = null;
+    string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
 
     public Window(){
 
@@ -1137,6 +1243,7 @@ namespace Ltk{
       this.window = new XcbWindow();
       this.window.size_changed.connect(on_xcb_window_size_change);
       this.window.draw.connect(this.draw);
+      this.window.on_mouse_move.connect(this._on_mouse_move);
 //~       return base(null);
     }
 
@@ -1146,7 +1253,6 @@ namespace Ltk{
 
 
     public override bool draw(Cairo.Context cr){
-      string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
       cr.save();
         cr.set_source_rgb(0, 1, 0);
         cr.paint();
@@ -1164,7 +1270,7 @@ namespace Ltk{
         cr.line_to(this.A.width, 0);
         cr.stroke();
         cr.move_to( 2, this.A.height-10);
-        cr.show_text( text);
+        cr.show_text( this.text);
         cr.stroke ();
       cr.restore();
 //~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
@@ -1208,14 +1314,25 @@ namespace Ltk{
     public void load_font_with_size(string fpatch,uint size){
       this.window.load_font_with_size(fpatch, size);
     }
-    public void clear_area(uint x,uint y,uint width,uint height){
-      this.window.clear_area(x, y, width, height);
+    public void damage(uint x,uint y,uint width,uint height){
+      this.window.damage(x, y, width, height);
     }
 
     public override void show(){
       base.show();
       this.window.show();
     }
+
+    private bool _on_mouse_move(uint x, uint y){
+      text="on_mouse_move=%u,%u".printf(x,y);
+      this.damage(0, A.height-30, this.A.width, 30);
+      return true;
+    }
+    /*public virtual bool on_mouse_move(uint x, uint y){return true;}
+    public virtual bool on_mouse_enter(uint x, uint y){return true;}
+    public virtual bool on_mouse_leave(uint x, uint y){return true;}
+    public virtual bool on_key_press(uint keycode, uint state){return true;}
+    public virtual bool on_key_release(uint keycode, uint state){return true;}*/
 
 
   }//class Window
