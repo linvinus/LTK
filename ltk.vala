@@ -70,6 +70,9 @@ namespace Ltk{
     public static const string wm_protocols = "WM_PROTOCOLS";
     public static const string _net_wm_ping = "_NET_WM_PING";
     public static const string _net_wm_sync_request = "_NET_WM_SYNC_REQUEST";
+    public static const string _net_wm_pid = "_NET_WM_PID";
+    public static const string _utf8_string = "UTF8_STRING";
+    public static const string _string = "STRING";
   }
 
 //~   [SimpleType]
@@ -379,8 +382,22 @@ namespace Ltk{
       });
 
       Global.I.set_wm_protocols(this.window, Global.atoms.lookup(atom_names.wm_protocols), tmp_atoms);
-
-
+      uint32 tmp_pid = (uint32)Posix.getpid();
+      Global.C.change_property_uint32  ( Xcb.PropMode.REPLACE,
+                           this.window,
+                           Global.atoms.lookup(atom_names._net_wm_pid),
+                           Xcb.Atom.CARDINAL,
+    //~                        8,
+                           1,
+                           &tmp_pid);
+      uint8  machine_name[1024];// ="".data;
+//~       Global.I.get_wm_client_machine_reply(Global.I.get_wm_client_machine(Global.screen.root), out machine_name);
+      //xcb_icccm_get_text_property_reply_wipe
+      
+       if(Posix.gethostname((char[])machine_name) == 0){
+        GLib.stderr.printf("XcbWindow machine_name=%s length=%d\n",(string)machine_name,((string)machine_name).length);
+        Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
+      }
       this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.min_width, (int)this.min_height);
       this.cr = new Cairo.Context(this.surface);
 
@@ -395,22 +412,17 @@ namespace Ltk{
       Global.C.free_pixmap(this.pixmap);
       Global.C.unmap_window(this.window);
       Global.C.destroy_window(this.window);
+
+      if(Global.windows.lookup(this.window)!=null){
+        Global.windows.remove(this.window);
+        GLib.stderr.printf("~XcbWindow %u\n",this.window);
+      }
+      
       do{
         Global.C.flush();
       }while (  Global.C.poll_for_event() != null  );
 
     }//~XcbWindow
-
-    public void destroy(){
-      GLib.stderr.printf("XcbWindow destroy %u\n",this.window);
-      if(this.draw_callback_timer != 0){
-        GLib.Source.remove(draw_callback_timer);
-      }
-      if(Global.windows.lookup(this.window)!=null){
-        Global.windows.remove(this.window);
-        GLib.stderr.printf("~XcbWindow %u\n",this.window);
-      }
-    }
 
     private void show_do(){
       Global.C.map_window(this.window);
@@ -561,11 +573,19 @@ namespace Ltk{
             break;
             case Xcb.CLIENT_MESSAGE:
                 Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
-  //~               GLib.stderr.printf( "CLIENT_MESSAGE data32=%d deleteWindowAtom=%d\n", (int)e.data.data32[0],(int)deleteWindowAtom);
-                if(e.data.data32[0] == Global.deleteWindowAtom){
-    //~                 printf("done\n");
-                    _continue = false;
-                    Global.loop.quit ();
+                GLib.stderr.printf( "CLIENT_MESSAGE data32=%d deleteWindowAtom=%d\n", (int)e.data.data32[0],(int)Global.net_wm_ping_atom);
+                if(e.type == Global.atoms.lookup(atom_names.wm_protocols)){
+                  
+                  if(e.data.data32[0] == Global.net_wm_ping_atom){
+                     GLib.stderr.printf("Global.net_wm_ping_atom\n");
+                  }else if(e.data.data32[0] == Global.deleteWindowAtom){
+      //~                 printf("done\n");
+                      _continue = this.on_quit();//true to quit, false to continue
+                      if(_continue){
+                        _continue = false;
+                        this.quit();
+                      }
+                  }
                 }
             break;
             case Xcb.CONFIGURE_NOTIFY:
@@ -645,6 +665,13 @@ namespace Ltk{
         this.draw_callback_timer = GLib.Timeout.add((1000/30),on_draw);
       }
     }
+    
+    public void quit(){
+      Global.loop.quit ();
+      if(this.draw_callback_timer != 0){
+        GLib.Source.remove(draw_callback_timer);
+      }
+    }
 
     public signal void size_changed(uint width,uint height);//for parents
     public signal bool draw(Cairo.Context cr);
@@ -653,6 +680,11 @@ namespace Ltk{
     public signal bool on_mouse_leave(uint x, uint y);
     public signal bool on_key_press(uint keycode, uint state);
     public signal bool on_key_release(uint keycode, uint state);
+    public virtual signal bool on_quit(){
+      GLib.stderr.printf("Xcbwindow.on_quit\n");
+      //https://mail.gnome.org/archives/vala-list/2011-October/msg00103.html
+      return true;//default is to quit if no other handlers connected with connect_after;
+    }
   }//calss XcbWindow
   /********************************************************************/
 //~   [SimpleType]
@@ -665,8 +697,9 @@ namespace Ltk{
     public static Xcb.VisualType? visual;
     public static HashTable<string, Xcb.AtomT?> atoms;
     private static Xcb.AtomT deleteWindowAtom;
+    private static Xcb.AtomT net_wm_ping_atom;
     private static MainLoop loop;
-    public static GLib.HashTable<Xcb.Window,XcbWindow> windows;
+    public static GLib.HashTable<Xcb.Window,unowned XcbWindow> windows;
     private static uint xcb_source;
 
     public  static void Init(){
@@ -708,7 +741,20 @@ namespace Ltk{
         Global.atoms.insert(atom_names.wm_protocols,
           Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names.wm_protocols)).atom);
 
+      if(!Global.atoms.contains(atom_names._net_wm_pid))
+        Global.atoms.insert(atom_names._net_wm_pid,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_pid)).atom);
+
+      if(!Global.atoms.contains(atom_names._utf8_string))
+        Global.atoms.insert(atom_names._utf8_string,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._utf8_string)).atom);
+
+      if(!Global.atoms.contains(atom_names._string))
+        Global.atoms.insert(atom_names._string,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._string)).atom);
+
       Global.deleteWindowAtom = Global.atoms.lookup(atom_names.wm_delete_window);
+      Global.net_wm_ping_atom = Global.atoms.lookup(atom_names._net_wm_ping);
 
       Global.visual = find_visual(Global.C, Global.screen.root_visual);
       if (Global.visual == null) {
@@ -742,7 +788,7 @@ namespace Ltk{
           #define XCB_EVENT_RESPONSE_TYPE(e)   (e->response_type &  XCB_EVENT_RESPONSE_TYPE_MASK)
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
 
-          while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
+          while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
 //~             GLib.stderr.printf( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
@@ -1255,12 +1301,12 @@ namespace Ltk{
       this.window.size_changed.connect(on_xcb_window_size_change);
       this.window.draw.connect(this.draw);
       this.window.on_mouse_move.connect(this._on_mouse_move);
+      this.window.on_quit.connect_after(()=>{  GLib.stderr.printf("Window window.on_quit\n"); return false;});
 //~       return base(null);
     }
 
     ~Window(){
       GLib.stderr.printf("~Window\n");
-      this.window.destroy();
     }
 
 

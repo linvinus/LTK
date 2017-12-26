@@ -140,6 +140,9 @@ namespace Xcb {
 		public class Icccm : Xcb.Connection {
 			public GetPropertyCookie get_wm_class(Window window);
 			public GetPropertyCookie get_wm_class_unchecked(Window window);
+			public GetPropertyCookie get_wm_client_machine(Window window);
+			public GetPropertyCookie set_wm_client_machine(Window window,AtomT encoding,uint8 format, uint32 name_len,string name);
+			public void get_wm_client_machine_reply(GetPropertyCookie cookie,out string s,out GenericError? e = null);
 			public GetPropertyCookie set_wm_normal_hints(Window window, SizeHints hints);
 			public GetPropertyCookie set_wm_hints(Window window, WmHints hints);
 			public GetPropertyCookie set_wm_protocols(Window window,
