@@ -868,6 +868,10 @@ namespace Ltk{
       get{ return  this._min_width;}
       set{
         if(value != this._min_width){
+          GLib.stderr.printf("Widget min_width_old=%u new=%u\n",(uint)this._min_width,value);
+          if(this.A.width < this._min_width)
+            this.damaged = true;
+
           this._min_width = value;
           this.size_changed(this,this.A);
         }
@@ -878,6 +882,9 @@ namespace Ltk{
       get{ return  this._min_height;}
       set{
         if(value != this._min_height){
+          if(this.A.height < this._min_height)
+            this.damaged = true;
+
           this._min_height = value;
           this.size_changed(this,this.A);
         }
@@ -939,12 +946,19 @@ namespace Ltk{
         var prev  = this.A;
         if( value != ((A.options & SOptions.visible) > 0) ){
           this.A.options |= SOptions.visible;
-        }else{
+          this.damaged = true;
+        }else if( value == ((A.options & SOptions.visible) > 0) ){
           this.A.options &= ~(SOptions.visible);
+          this.damaged = true;
         }
         this.size_changed(this,prev);
-
       }
+      default = true;
+    }
+    private bool _damaged;
+    public bool damaged{
+      get {return _damaged;}
+      set {_damaged = value; GLib.stderr.printf("Widget damaged=%u\n",(uint)_damaged);}
       default = true;
     }
 
@@ -962,12 +976,15 @@ namespace Ltk{
     }
 
     public virtual bool draw(Cairo.Context cr){
-        cr.save();
-        cr.set_line_width(2);
-        cr.set_source_rgb(0, 0, 0);
-        cr.rectangle (this.A.x, this.A.y, this.A.width, this.A.height);
-        cr.stroke ();
-        cr.restore();
+        if(this.damaged){
+          cr.save();
+          cr.set_line_width(2);
+          cr.set_source_rgb(0, 0, 0);
+          cr.rectangle (0, 0, this.A.width, this.A.height);
+          cr.stroke ();
+          cr.restore();
+          this.damaged=false;
+        }
       return true;//continue
     }//draw
 
@@ -1067,11 +1084,13 @@ namespace Ltk{
           _h = w.get_prefered_height();
           height_min = uint.max(height_min, _h);
           height_max = (this.place_policy == SOptions.place_vertical ? height_max + _h : height_min);
+          GLib.stderr.printf( "get_height_for_width1 min=%u max=%u %s\n",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_height_serial = this.size_changed_serial;
       }else{
         height_min = this.min_height;
         height_max = height_min;//uint.max(this.A.height,height_min);
+        GLib.stderr.printf( "get_height_for_width2 min=%u max=%u \n",height_min,height_max );
       }
     }//get_height_for_width
 
@@ -1120,6 +1139,11 @@ namespace Ltk{
         //just to be shure
         if(calc_width < this.min_width)  { calc_width  = this.min_width; }
         if(calc_height < this.min_height){ calc_height = this.min_height;}
+
+          if( calc_width != this.A.width || calc_height != this.A.height ){
+            this.damaged=true;
+          }
+          GLib.stderr.printf("damaged=%u calc=%u,%u A=%u,%u\n",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
 
           this.A.width = calc_width;//apply new allocation
           this.A.height = calc_height;
@@ -1174,6 +1198,9 @@ namespace Ltk{
               new_height = w.min_height;
             }
             GLib.stderr.printf("A w=%u h=%u\n",new_width,new_height);
+            if( new_width != w.A.width || new_height != w.A.height ){
+              w.damaged=true;
+            }
 
             if(w is Ltk.Container){
               ((Ltk.Container)w).calculate_size(ref new_width,ref new_height, this);
@@ -1240,6 +1267,10 @@ namespace Ltk{
 
             GLib.stderr.printf("A w=%u h=%u\n",w.A.width,w.A.height);
 
+            if( new_width != w.A.width || new_height != w.A.height ){
+              w.damaged=true;
+            }
+
             if(w is Ltk.Container){
               ((Ltk.Container)w).calculate_size(ref new_width,ref new_height, this);
             }else{
@@ -1251,39 +1282,62 @@ namespace Ltk{
             w.A.options |= w.fill_mask;
           }//foreach childs
         }//SOptions.place_vertical
-      GLib.stderr.printf( "container end calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
+      GLib.stderr.printf( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
 
+      //calculate position
+      uint _x = 0, _y = 0, _w = 0, _h = 0;
+
+      foreach(var w in this.childs){
+            if(this.place_policy == SOptions.place_horizontal){
+              _y = (this.A.height-w.A.height)/2;
+              if( _x != w.A.x || _y != w.A.y ){
+                w.damaged=true;
+              }
+              w.A.x = _x;
+              w.A.y = _y;
+              _x+=w.A.width;
+            }else{
+              _x = (this.A.width-w.A.width)/2;
+              if( _x != w.A.x || _y != w.A.y ){
+                w.damaged=true;
+              }
+              w.A.x = _x;
+              w.A.y = _y;
+              _y+=w.A.height;
+            }
+      }
       this._calculating_size=false;
     }//calculate_size
 
     public override bool draw(Cairo.Context cr){
         uint len = this.childs.count;
-        uint _x = 0, _y = 0, _w = 0, _h = 0;
-        cr.save();
-        cr.set_line_width(4);
-        cr.set_source_rgb(1, 0, 0);
-        GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
-        cr.rectangle (this.A.x, this.A.y, this.A.width, this.A.height);
-        cr.stroke ();
-        cr.restore();
+//~         uint _x = 0, _y = 0, _w = 0, _h = 0;
+
+        if(this.damaged){
+          cr.save();
+          cr.set_line_width(4);
+          cr.set_source_rgb(1, 0, 0);
+          GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
+          cr.rectangle (0, 0, this.A.width, this.A.height);
+          cr.stroke ();
+          cr.restore();
+        }
         foreach(var w in this.childs){
           cr.save();
-            GLib.stderr.printf( "childs draw %d\n",(int)w.A.width);
   //~           cr.move_to ();
-            if(this.place_policy == SOptions.place_horizontal){
-              cr.translate (_x,(this.A.height-w.A.height)/2);
-              _x+=w.A.width;
-            }else{
-              cr.translate ((this.A.width-w.A.width)/2,_y);
-              _y+=w.A.height;
+            if(w.damaged || w is Ltk.Container){
+//~               w.damaged=true;//force
+              GLib.stderr.printf( "childs draw %d\n",(int)w.A.width);
+              cr.translate (w.A.x,w.A.y);
+              cr.rectangle (0, 0,w.A.width/*+border.left+border.right*/, w.A.height/*+border.top+border.bottom*/);
+              cr.clip ();
+              w.draw(cr);
             }
-            cr.rectangle (0, 0,w.A.width/*+border.left+border.right*/, w.A.height/*+border.top+border.bottom*/);
-            cr.clip ();
-            w.draw(cr);
-          cr.restore();
 
-        }//foreach
+          cr.restore();
+          }//foreach
         return base.draw(cr);
+        this.damaged = false;
       }//draw
 
   }//class container
@@ -1303,7 +1357,7 @@ namespace Ltk{
       this.window.size_changed.connect(on_xcb_window_size_change);
       this.window.draw.connect(this.draw);
       this.window.on_mouse_move.connect(this._on_mouse_move);
-      this.window.on_quit.connect_after(()=>{  GLib.stderr.printf("Window window.on_quit\n"); return false;});
+//~       this.window.on_quit.connect_after(()=>{  GLib.stderr.printf("Window window.on_quit\n"); return false;});
 //~       return base(null);
     }
 
@@ -1313,35 +1367,40 @@ namespace Ltk{
 
 
     public override bool draw(Cairo.Context cr){
-      cr.save();
-        cr.set_source_rgb(0, 1, 0);
-        cr.paint();
+      GLib.stderr.printf( "window draw w=%u h=%u childs=%u damage=%u\n", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
+      if(this.damaged){
+        cr.save();
+          cr.set_source_rgb(0, 1, 0);
+          cr.paint();
 
-        cr.set_source_rgb(1, 0, 0);
-        cr.move_to(0, 0);
-        cr.line_to(this.A.width, 0);
-        cr.line_to(this.A.width, this.A.height);
-        cr.close_path();
-        cr.fill();
+          cr.set_source_rgb(1, 0, 0);
+          cr.move_to(0, 0);
+          cr.line_to(this.A.width, 0);
+          cr.line_to(this.A.width, this.A.height);
+          cr.close_path();
+          cr.fill();
 
-        cr.set_source_rgb(0, 0, 1);
-        cr.set_line_width(20);
-        cr.move_to(0, this.A.height);
-        cr.line_to(this.A.width, 0);
-        cr.stroke();
-        cr.move_to( 2, this.A.height-10);
-        cr.show_text( this.text);
-        cr.stroke ();
-      cr.restore();
+          cr.set_source_rgb(0, 0, 1);
+          cr.set_line_width(20);
+          cr.move_to(0, this.A.height);
+          cr.line_to(this.A.width, 0);
+          cr.stroke();
+          cr.move_to( 2, this.A.height-10);
+          cr.show_text( this.text);
+          cr.stroke ();
+        cr.restore();
+      }
 //~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
 //~       this.A.width = this.min_width;
 //~       this.A.height = this.min_height;
       return base.draw(cr);
+      this.damaged=false;
     }//draw
 
     private void on_xcb_window_size_change(uint width,uint height){
         this.size_changed_serial++;
         this.calculate_size(ref width,ref height,this);
+//~         this.damaged=true;
     }
 
     public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget calc_initiator){
@@ -1375,6 +1434,7 @@ namespace Ltk{
       this.window.load_font_with_size(fpatch, size);
     }
     public void damage(uint x,uint y,uint width,uint height){
+//~       this.damaged=true;
       this.window.damage(x, y, width, height);
     }
 
@@ -1385,7 +1445,7 @@ namespace Ltk{
 
     private bool _on_mouse_move(uint x, uint y){
       text="on_mouse_move=%u,%u".printf(x,y);
-      this.damage(0, A.height-30, this.A.width, 30);
+      this.damage(0, A.height-20, this.A.width, 20);
       return true;
     }
     /*public virtual bool on_mouse_move(uint x, uint y){return true;}
@@ -1402,6 +1462,7 @@ namespace Ltk{
 
   public class Button: Widget{
     public string? label = null;
+    private uint8 color=128;
     public Button(string? label = null){
       base();
       this.label = label;
@@ -1410,8 +1471,8 @@ namespace Ltk{
     }
     public override bool draw(Cairo.Context cr){
       GLib.stderr.printf( "Button draw %s\n",this.get_class().get_name());
-      cr.set_source_rgb(0.5, 1, 0.5);
-         cr.rectangle (this.A.x, this.A.y,this.A.width/*+border.left+border.right*/, this.A.height/*+border.top+border.bottom*/);
+      cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
+         cr.rectangle (0, 0,this.A.width/*+border.left+border.right*/, this.A.height/*+border.top+border.bottom*/);
          cr.fill ();
          if(this.label != null){
           cr.set_source_rgb(0.1, 0.1, 0.1);
@@ -1420,6 +1481,7 @@ namespace Ltk{
           }
          cr.stroke ();
       base.draw(cr);
+      this.color+=50;
 //~       cr.paint();
       return true;//continue
     }//draw
