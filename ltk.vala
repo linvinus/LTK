@@ -368,20 +368,21 @@ namespace Ltk{
                 values);
 
 
-
+      //WM_HINTS
       var hints =  new Xcb.Icccm.WmHints ();
       Xcb.Icccm.wm_hints_set_normal(ref hints);
       Global.I.set_wm_hints(this.window, hints);
 
 
-
+      //WM_PROTOCOLS
       Xcb.AtomT[] tmp_atoms={};
-      Global.atoms.foreach ((key, val) => {
-        if(key != atom_names.wm_protocols)
-          tmp_atoms += val;
-      });
-
+      tmp_atoms +=Global.atoms.lookup(atom_names.wm_delete_window);
+      tmp_atoms +=Global.atoms.lookup(atom_names.wm_take_focus);
+      tmp_atoms +=Global.atoms.lookup(atom_names._net_wm_ping);
+      tmp_atoms +=Global.atoms.lookup(atom_names._net_wm_sync_request);
       Global.I.set_wm_protocols(this.window, Global.atoms.lookup(atom_names.wm_protocols), tmp_atoms);
+
+      //_NET_WM_PID
       uint32 tmp_pid = (uint32)Posix.getpid();
       Global.C.change_property_uint32  ( Xcb.PropMode.REPLACE,
                            this.window,
@@ -390,14 +391,13 @@ namespace Ltk{
     //~                        8,
                            1,
                            &tmp_pid);
-      uint8  machine_name[1024];// ="".data;
-//~       Global.I.get_wm_client_machine_reply(Global.I.get_wm_client_machine(Global.screen.root), out machine_name);
-      //xcb_icccm_get_text_property_reply_wipe
-
-       if(Posix.gethostname((char[])machine_name) == 0){
+      //WM_CLIENT_MACHINE
+      uint8  machine_name[1024];
+      if(Posix.gethostname((char[])machine_name) == 0){
         GLib.stderr.printf("XcbWindow machine_name=%s length=%d\n",(string)machine_name,((string)machine_name).length);
         Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
       }
+
       this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.min_width, (int)this.min_height);
       this.cr = new Cairo.Context(this.surface);
 
@@ -791,7 +791,7 @@ namespace Ltk{
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
 
           while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
-//~             GLib.stderr.printf( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
+            GLib.stderr.printf( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
