@@ -393,7 +393,7 @@ namespace Ltk{
       uint8  machine_name[1024];// ="".data;
 //~       Global.I.get_wm_client_machine_reply(Global.I.get_wm_client_machine(Global.screen.root), out machine_name);
       //xcb_icccm_get_text_property_reply_wipe
-      
+
        if(Posix.gethostname((char[])machine_name) == 0){
         GLib.stderr.printf("XcbWindow machine_name=%s length=%d\n",(string)machine_name,((string)machine_name).length);
         Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
@@ -417,7 +417,7 @@ namespace Ltk{
         Global.windows.remove(this.window);
         GLib.stderr.printf("~XcbWindow %u\n",this.window);
       }
-      
+
       do{
         Global.C.flush();
       }while (  Global.C.poll_for_event() != null  );
@@ -573,10 +573,11 @@ namespace Ltk{
             break;
             case Xcb.CLIENT_MESSAGE:
                 Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
-                GLib.stderr.printf( "CLIENT_MESSAGE data32=%d deleteWindowAtom=%d\n", (int)e.data.data32[0],(int)Global.net_wm_ping_atom);
+                GLib.stderr.printf( "CLIENT_MESSAGE data32=%d name=%s deleteWindowAtom=%d\n", (int)e.data.data32[0],Global.C.get_atom_name_reply(Global.C.get_atom_name(e.data.data32[0])).name,(int)Global.net_wm_ping_atom);
                 if(e.type == Global.atoms.lookup(atom_names.wm_protocols)){
-                  
-                  if(e.data.data32[0] == Global.net_wm_ping_atom){
+                  if(e.data.data32[0] == Global.atoms.lookup(atom_names.wm_take_focus)){
+                      this.on_focus();
+                  }else if(e.data.data32[0] == Global.net_wm_ping_atom){
                      GLib.stderr.printf("Global.net_wm_ping_atom\n");
                   }else if(e.data.data32[0] == Global.deleteWindowAtom){
       //~                 printf("done\n");
@@ -665,7 +666,7 @@ namespace Ltk{
         this.draw_callback_timer = GLib.Timeout.add((1000/30),on_draw);
       }
     }
-    
+
     public void quit(){
       Global.loop.quit ();
       if(this.draw_callback_timer != 0){
@@ -685,6 +686,7 @@ namespace Ltk{
       //https://mail.gnome.org/archives/vala-list/2011-October/msg00103.html
       return true;//default is to quit if no other handlers connected with connect_after;
     }
+    public signal bool on_focus();
   }//calss XcbWindow
   /********************************************************************/
 //~   [SimpleType]
