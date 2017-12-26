@@ -390,10 +390,7 @@ namespace Ltk{
     ~XcbWindow(){
       GLib.stderr.printf("~XcbWindow fd=%u\n",Global.C.get_file_descriptor());
       this.surface.finish();//When the last call to cairo_surface_destroy() decreases the reference count to zero, cairo will call cairo_surface_finish()
-      if(Global.windows.lookup(this.window)!=null){
-        Global.windows.remove(this.window);
-        GLib.stderr.printf("~XcbWindow %u\n",this.window);
-      }
+
       Global.C.free_gc(this.pixmap_gc);
       Global.C.free_pixmap(this.pixmap);
       Global.C.unmap_window(this.window);
@@ -403,6 +400,17 @@ namespace Ltk{
       }while (  Global.C.poll_for_event() != null  );
 
     }//~XcbWindow
+
+    public void destroy(){
+      GLib.stderr.printf("XcbWindow destroy %u\n",this.window);
+      if(this.draw_callback_timer != 0){
+        GLib.Source.remove(draw_callback_timer);
+      }
+      if(Global.windows.lookup(this.window)!=null){
+        Global.windows.remove(this.window);
+        GLib.stderr.printf("~XcbWindow %u\n",this.window);
+      }
+    }
 
     private void show_do(){
       Global.C.map_window(this.window);
@@ -659,6 +667,7 @@ namespace Ltk{
     private static Xcb.AtomT deleteWindowAtom;
     private static MainLoop loop;
     public static GLib.HashTable<Xcb.Window,XcbWindow> windows;
+    private static uint xcb_source;
 
     public  static void Init(){
       Global.atoms = new GLib.HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
@@ -711,7 +720,7 @@ namespace Ltk{
       Global.loop = new MainLoop ();
 
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
-      channel.add_watch(IOCondition.IN,  (source, condition) => {
+      Global.xcb_source = channel.add_watch(IOCondition.IN,  (source, condition) => {
           if (condition == IOCondition.HUP) {
           GLib.stderr.printf ("The connection has been broken.\n");
           Global.loop.quit();
@@ -787,13 +796,15 @@ namespace Ltk{
       GLib.stderr.printf ("atoms.remove_all\n");
       Global.atoms.foreach((k,v)=>{ free((void*)v); });
       Global.atoms.remove_all();
-      GLib.stderr.printf ("windows.remove_all\n");
+//~       GLib.stderr.printf ("windows.remove_all\n");
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
-      Global.windows.remove_all();
+//~       Global.windows.remove_all();
       //~     surface.finish();
     FontLoader.destroy();
 
-    GLib.stderr.printf ("Global.C.unref\n");
+//~     GLib.stderr.printf ("Global.C.unref\n");
+//~     GLib.Source.remove(Global.xcb_source);
+
 //~     surface.destroy();
 //~     xcb_disconnect(c);
     }//run
@@ -1249,6 +1260,7 @@ namespace Ltk{
 
     ~Window(){
       GLib.stderr.printf("~Window\n");
+      this.window.destroy();
     }
 
 
