@@ -971,8 +971,7 @@ namespace Ltk{
       this.engine = new ThemeEngine("");
 
       this.engine.map.bg.r = this.engine.map.bg.g = this.engine.map.bg.b = 0.5;
-      this.engine.map.br.r = 1.0;
-      this.engine.map.br.g = this.engine.map.br.b = 0.0;
+      this.engine.map.br.r = this.engine.map.br.g = this.engine.map.br.b = 0.3;
 
     }//create
 
@@ -985,7 +984,7 @@ namespace Ltk{
         this.engine.begin(this.A.width,this.A.height);
         if(this.damaged){
           this.engine.translate2background(cr);
-          this.engine.draw_background(cr);
+          this.engine.draw_box(cr);
 //~           this.engine.draw_border(cr,this.A.width, this.A.height, this.A.height / 20.0, 50);
           this.damaged=false;
         }
@@ -1496,10 +1495,12 @@ namespace Ltk{
       engine.map.bg.r = 0.0;
       engine.map.bg.g = 0.5;
       engine.map.bg.b = 0.0;
+
       engine.border.left = 1;
-      engine.border.right = 0;
-      engine.border.top = 0;
-      engine.border.bottom = 0;
+      engine.border.right = 1;
+      engine.border.top = 1;
+      engine.border.bottom = 1;
+
       engine.padding.left = 5;
       engine.padding.right = 5;
     }
@@ -1508,16 +1509,15 @@ namespace Ltk{
         this.engine.begin(this.A.width,this.A.height);
         if(this.damaged){
           this.engine.translate2background(cr);
-          this.engine.draw_background(cr);
-         this.engine.draw_border(cr,this.engine.height / 10.0);
+          this.engine.draw_box(cr,this.engine.height / 10.0);
 //~          base.draw(cr);//widget background
 //~           cr.set_fill_rule (Cairo.FillRule.EVEN_ODD);
 
 //~          cr.clip();
-         cr.stroke ();
+//~          cr.stroke ();
 
          this.engine.translate2box(cr);//main part where we can draw
-         
+
          cr.translate (0,(double)(this.A.height/2));
          if(this.label != null){
           cr.set_source_rgb(engine.map.text.r,
@@ -1551,7 +1551,7 @@ namespace Ltk{
     public ColorRGB br;
     public ColorRGB text;
   }
-  
+
   [SimpleType]
   [CCode (has_type_id = false)]
   public enum StyleState{
@@ -1567,7 +1567,7 @@ namespace Ltk{
     double left;
     double right;
   }
-    
+
   public class ThemeEngine{
     private string widget_path;
     public ColorMap map;
@@ -1579,7 +1579,7 @@ namespace Ltk{
     public Borders padding;
     public double width;
     public double height;
-      
+
     public ThemeEngine(string widget_path){
       this.widget_path = widget_path;
       this.patterns = new GLib.HashTable<int,Cairo.Pattern> (int_hash, int_equal);
@@ -1617,15 +1617,16 @@ namespace Ltk{
     }
 
     public void draw_background(Cairo.Context cr){
+          return;
           cr.save();
           cr.set_source_rgb(map.bg.r, map.bg.g, map.bg.b);
           cr.rectangle (0, 0, width, height);
           cr.fill_preserve ();
-//~           cr.stroke ();
+          cr.stroke ();
           cr.restore();
           GLib.stderr.printf("* draw_background wh=%u,%u c=%f,%f,%f\n",(uint)width,(uint)height,map.bg.r, map.bg.g, map.bg.b);
     }
-    public void draw_border(Cairo.Context cr,double corner_radius){
+/*    public void draw_border(Cairo.Context cr,double corner_radius){
     //#from mono moonlight aka mono silverlight
     //#test limits (without using multiplications)
     //# http://graphics.stanford.edu/courses/cs248-98-fall/Final/q1.html
@@ -1643,8 +1644,9 @@ namespace Ltk{
 
     cr.new_path();
 //~     cr.set_source_rgb ( map.br.r, map.br.g, map.br.b);
+//~     cr.save();
     cr.move_to ( x + radius_x, y);
-    cr.set_line_width (border.top);   
+    cr.set_line_width (border.top);
     cr.rel_line_to ( w - 2 * radius_x, 0.0);
     cr.rel_curve_to ( c1, 0.0, radius_x, c2, radius_x, radius_y);
     cr.set_line_width (border.right);
@@ -1656,34 +1658,83 @@ namespace Ltk{
     cr.set_line_width (border.left);
     cr.rel_line_to (0, -h + 2 * radius_y);
     cr.rel_curve_to (0.0, -c2, radius_x - c1, -radius_y, radius_x, -radius_y);
+//~     cr.restore();
     cr.close_path ();
-//~     cr.stroke ();
-    
-    }
-/*    public void draw_border(Cairo.Context cr,double corner_radius){
-      double aspect = 1.0;
-      double radius = corner_radius / aspect;
-      double degrees = Math.PI / 180.0;
-      double x = 0;
-      double y = 0;
-      cr.save();
-      cr.new_sub_path ();
-      cr.arc ( x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
-//~       cr.set_source_rgba ( 0.0, 0, 0.5, 0.5);
-//~       cr.stroke ();
-      cr.arc ( x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
-      cr.arc ( x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
-      cr.arc ( x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
-      cr.close_path ();
+    cr.stroke ();
 
-//~       cr.set_source_rgb ( map.br.r, map.br.g, map.br.b);
-//~       cr.fill_preserve ();
-      cr.set_source_rgba ( 0.5, 0, 0, 1.0);
-      cr.set_line_width (5);
-      cr.stroke ();
-      cr.restore();
     }*/
+
+//~     public void draw_border(Cairo.Context cr,double r){
+    /*#   A****BQ
+      #  H      C
+      #  *      *
+      #  G      D
+      #   F****E
+      */
+/*
+      double w =width, h = height, x = 0 , y = 0;
+      r=30;
+      cr.save();
+//~       cr.set_source_rgb ( map.br.r, map.br.g, map.br.b);
+      cr.set_source_rgb ( 1,0,0);
+//~       cr.set_line_width (1);
+
+      cr.move_to(x+r,y);                      // Move to A
+      cr.set_line_width (border.top);
+      cr.line_to(x+w-r,y);                    // Straight line to B
+      cr.curve_to(x+w,y,x+w,y,x+w,y+r);       // Curve to C, Control points are both at Q
+      cr.stroke ();
+
+      cr.set_line_width (border.right);
+      cr.line_to(x+w,y+h-r);                  // Move to D
+      cr.curve_to(x+w,y+h,x+w,y+h,x+w-r,y+h); // Curve to E
+      cr.stroke ();
+
+      cr.set_line_width (border.bottom);
+      cr.line_to(x+r,y+h);                    // Line to F
+      cr.curve_to(x,y+h,x,y+h,x,y+h-r);       // Curve to G
+      cr.stroke ();
+
+      cr.set_line_width (border.left);
+      cr.line_to(x,y+r);                      // Line to H
+      cr.curve_to(x,y,x,y,x+r,y);             // Curve to A
+      cr.stroke ();
+
+      cr.restore();
+
+    }*/
+    public void draw_box(Cairo.Context cr,double corner_radius = 0){
+      if(corner_radius == 0){
+        cr.save();
+        cr.set_source_rgb(map.bg.r, map.bg.g, map.bg.b);
+        cr.rectangle (0, 0, width, height);
+        cr.fill_preserve ();
+        cr.stroke ();
+        cr.restore();
+      }else{
+        double aspect = 1.0;
+        double radius = corner_radius / aspect;
+        double degrees = Math.PI / 180.0;
+        double x = 0;
+        double y = 0;
+        cr.save();
+        cr.new_sub_path ();
+        cr.arc ( x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
+        cr.arc ( x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
+        cr.arc ( x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
+        cr.arc ( x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+        cr.close_path ();
+
+        cr.set_source_rgb(map.bg.r, map.bg.g, map.bg.b);
+        cr.fill_preserve ();
+        cr.set_source_rgb ( map.br.r, map.br.g, map.br.b);
+        cr.set_line_width (border.left);
+        cr.stroke ();
+        cr.restore();
+      }
+
+    }
   }//ThemeEngine
-  
+
 
 }//namespace Ltk
