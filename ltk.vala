@@ -960,12 +960,20 @@ namespace Ltk{
       default = true;
     }
 
+    public Ltk.ThemeEngine engine;
+
     public Widget(Widget? parent = null){
       GLib.Object();
       this.childs = new WidgetList();
 //~       this.x = this.y = 0;
       if(parent != null)
         this.parent = parent;
+      this.engine = new ThemeEngine("");
+
+      this.engine.map.bg.r = this.engine.map.bg.g = this.engine.map.bg.b = 0.5;
+      this.engine.map.br.r = 1.0;
+      this.engine.map.br.g = this.engine.map.br.b = 0.0;
+
     }//create
 
     ~Widget(){
@@ -974,13 +982,11 @@ namespace Ltk{
     }
 
     public virtual bool draw(Cairo.Context cr){
+        this.engine.begin(this.A.width,this.A.height);
         if(this.damaged){
-          cr.save();
-          cr.set_line_width(2);
-          cr.set_source_rgb(0, 0, 0);
-          cr.rectangle (0, 0, this.A.width, this.A.height);
-          cr.stroke ();
-          cr.restore();
+          this.engine.translate2background(cr);
+          this.engine.draw_background(cr);
+//~           this.engine.draw_border(cr,this.A.width, this.A.height, this.A.height / 20.0, 50);
           this.damaged=false;
         }
       return true;//continue
@@ -1309,34 +1315,41 @@ namespace Ltk{
     }//calculate_size
 
     public override bool draw(Cairo.Context cr){
+        var _ret = base.draw(cr);//widget
         uint len = this.childs.count;
 //~         uint _x = 0, _y = 0, _w = 0, _h = 0;
 
-        if(this.damaged){
-          cr.save();
-          cr.set_line_width(4);
-          cr.set_source_rgb(1, 0, 0);
-          GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
-          cr.rectangle (0, 0, this.A.width, this.A.height);
-          cr.stroke ();
-          cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
-          cr.rectangle (0, 0,this.A.width/*+border.left+border.right*/, this.A.height/*+border.top+border.bottom*/);
-          cr.fill ();
-          this.color += 100;
-          cr.restore();
-        }
+//~         if(this.damaged){
+//~           cr.save();
+//~           cr.set_line_width(4);
+//~           cr.set_source_rgb(1, 0, 0);
+//~           GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
+//~           cr.rectangle (0, 0, this.A.width, this.A.height);
+//~           cr.stroke ();
+//~           cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
+//~           cr.rectangle (0, 0,this.A.width/*+border.left+border.right*/, this.A.height/*+border.top+border.bottom*/);
+//~           cr.fill ();
+//~           this.color += 100;
+//~           cr.restore();
+//~         }
         foreach(var w in this.childs){
           cr.save();
             if(w.damaged || w is Ltk.Container){//always propagate draw for container childs
               if(!(w is Ltk.Container)){//container will draw it own background
-                cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
+//~                 cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
                 uint _x = ( this.place_policy == SOptions.place_horizontal ? w.A.x : 0),
                      _y = ( this.place_policy == SOptions.place_horizontal ? 0 : w.A.y),
                      _w = ( this.place_policy == SOptions.place_horizontal ? w.A.width : this.A.width/*+border.left+border.right*/),
                      _h = ( this.place_policy == SOptions.place_horizontal ? this.A.height /*+border.top+border.bottom*/ : w.A.height );
-                cr.rectangle (_x,_y,_w,_h );
-                cr.fill ();//repaint part of this container background
+//~                 cr.rectangle (_x,_y,_w,_h );
+//~                 cr.fill ();//repaint part of this container background
 //~                 GLib.stderr.printf( "childs draw xy=%u,%u  wh=%u,%u\n",_x,_y,_w,_h);
+                    cr.save();
+                    cr.translate (_x, _y);
+                    this.engine.begin(_w,_h);
+                    this.engine.translate2background(cr);
+                    this.engine.draw_background(cr);
+                    cr.restore();
                 this.color += 100;
               }
               GLib.stderr.printf( "childs draw %d\n",(int)w.A.width);
@@ -1348,7 +1361,7 @@ namespace Ltk{
 
           cr.restore();
           }//foreach
-        return base.draw(cr);//widget
+        return _ret;
       }//draw
 
   }//class container
@@ -1379,9 +1392,11 @@ namespace Ltk{
 
     public override bool draw(Cairo.Context cr){
       GLib.stderr.printf( "window draw w=%u h=%u childs=%u damage=%u\n", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
-      if(this.damaged){
+      var was_damaged = this.damaged;
+      var _ret = base.draw(cr);//Container
+      if(1==1 ||was_damaged){
         cr.save();
-          cr.set_source_rgb(0, 1, 0);
+          /*cr.set_source_rgb(0, 1, 0);
           cr.paint();
 
           cr.set_source_rgb(1, 0, 0);
@@ -1395,7 +1410,7 @@ namespace Ltk{
           cr.set_line_width(20);
           cr.move_to(0, this.A.height);
           cr.line_to(this.A.width, 0);
-          cr.stroke();
+          cr.stroke();*/
           cr.move_to( 2, this.A.height-10);
           cr.show_text( this.text);
           cr.stroke ();
@@ -1404,7 +1419,7 @@ namespace Ltk{
 //~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
 //~       this.A.width = this.min_width;
 //~       this.A.height = this.min_height;
-      return base.draw(cr);//Container
+      return _ret;
     }//draw
 
     private void on_xcb_window_size_change(uint width,uint height){
@@ -1478,22 +1493,197 @@ namespace Ltk{
       this.label = label;
       this.min_width = 50;
       this.min_height = 50;
+      engine.map.bg.r = 0.0;
+      engine.map.bg.g = 0.5;
+      engine.map.bg.b = 0.0;
+      engine.border.left = 1;
+      engine.border.right = 0;
+      engine.border.top = 0;
+      engine.border.bottom = 0;
+      engine.padding.left = 5;
+      engine.padding.right = 5;
     }
     public override bool draw(Cairo.Context cr){
       GLib.stderr.printf( "Button draw %s\n",this.get_class().get_name());
-      cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
-         cr.rectangle (0, 0,this.A.width/*+border.left+border.right*/, this.A.height/*+border.top+border.bottom*/);
-         cr.fill ();
+        this.engine.begin(this.A.width,this.A.height);
+        if(this.damaged){
+          this.engine.translate2background(cr);
+          this.engine.draw_background(cr);
+         this.engine.draw_border(cr,this.engine.height / 10.0);
+//~          base.draw(cr);//widget background
+//~           cr.set_fill_rule (Cairo.FillRule.EVEN_ODD);
+
+//~          cr.clip();
+         cr.stroke ();
+
+         this.engine.translate2box(cr);//main part where we can draw
+         
+         cr.translate (0,(double)(this.A.height/2));
          if(this.label != null){
-          cr.set_source_rgb(0.1, 0.1, 0.1);
-          cr.move_to(0,this.min_height/2);
+          cr.set_source_rgb(engine.map.text.r,
+                            engine.map.text.g,
+                            engine.map.text.b);
           cr.show_text(this.label);
           }
          cr.stroke ();
-      base.draw(cr);
+         this.damaged=false;
+      }
       this.color+=50;
+      engine.map.bg.g = (double)this.color/255.0;
 //~       cr.paint();
       return true;//continue
     }//draw
   }
+
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public struct ColorRGB{
+    double r;
+    double g;
+    double b;
+  }
+
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public struct ColorMap{
+    public ColorRGB bg;
+    public ColorRGB fg;
+    public ColorRGB br;
+    public ColorRGB text;
+  }
+  
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public enum StyleState{
+    disabled = 1<<1,
+    hover    = 1<<2,
+    focused  = 1<<3
+  }
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public struct Borders{
+    double top;
+    double bottom;
+    double left;
+    double right;
+  }
+    
+  public class ThemeEngine{
+    private string widget_path;
+    public ColorMap map;
+    private GLib.HashTable<int,Cairo.Pattern> patterns;
+    public StyleState state;
+    public Borders border;
+    public Borders border_radius;
+    public Borders margin;
+    public Borders padding;
+    public double width;
+    public double height;
+      
+    public ThemeEngine(string widget_path){
+      this.widget_path = widget_path;
+      this.patterns = new GLib.HashTable<int,Cairo.Pattern> (int_hash, int_equal);
+      this.map = {};
+    }
+    public void generate_patterns(){
+      this.patterns.insert(StyleState.disabled,new Cairo.Pattern.rgb(map.bg.r, map.bg.g, map.bg.b));
+    }
+    public void set_color_map(ColorMap map){
+      this.map = map;
+    }
+    public void begin(double width,double height){
+      this.width = width;
+      this.height = height;
+    }
+    public void translate2background(Cairo.Context cr){
+      double x = border.left;
+      double y = border.top;
+      width -= (border.left + border.right);
+      height -= (border.top + border.bottom);
+      cr.rectangle (x, y, width, height);
+      cr.clip ();
+      cr.translate (x,y);
+    }
+    public void translate2box(Cairo.Context cr){
+       double x = padding.left;
+       double y = padding.top;
+       double w = width
+                - (padding.left + padding.right);
+       double h = height
+                - (padding.top + padding.bottom);
+      cr.rectangle (x, y, w, h);
+      cr.clip ();
+      cr.translate (x,y);
+    }
+
+    public void draw_background(Cairo.Context cr){
+          cr.save();
+          cr.set_source_rgb(map.bg.r, map.bg.g, map.bg.b);
+          cr.rectangle (0, 0, width, height);
+          cr.fill_preserve ();
+//~           cr.stroke ();
+          cr.restore();
+          GLib.stderr.printf("* draw_background wh=%u,%u c=%f,%f,%f\n",(uint)width,(uint)height,map.bg.r, map.bg.g, map.bg.b);
+    }
+    public void draw_border(Cairo.Context cr,double corner_radius){
+    //#from mono moonlight aka mono silverlight
+    //#test limits (without using multiplications)
+    //# http://graphics.stanford.edu/courses/cs248-98-fall/Final/q1.html
+    double radius_x = corner_radius +20 , radius_y = corner_radius + 20;
+    double w =width, h = height, x = 0 , y = 0;
+    double ARC_TO_BEZIER = 0.55228475;
+    if (radius_x > w - radius_x)
+        radius_x = w / 2.0;
+    if (radius_y > h - radius_y)
+        radius_y = h / 2.0;
+
+    //#approximate (quite close) the arc using a bezier curve
+    double c1 = ARC_TO_BEZIER * radius_x;
+    double c2 = ARC_TO_BEZIER * radius_y;
+
+    cr.new_path();
+//~     cr.set_source_rgb ( map.br.r, map.br.g, map.br.b);
+    cr.move_to ( x + radius_x, y);
+    cr.set_line_width (border.top);   
+    cr.rel_line_to ( w - 2 * radius_x, 0.0);
+    cr.rel_curve_to ( c1, 0.0, radius_x, c2, radius_x, radius_y);
+    cr.set_line_width (border.right);
+    cr.rel_line_to ( 0, h - 2 * radius_y);
+    cr.rel_curve_to ( 0.0, c2, c1 - radius_x, radius_y, -radius_x, radius_y);
+    cr.set_line_width (border.bottom);
+    cr.rel_line_to ( -w + 2 * radius_x, 0);
+    cr.rel_curve_to ( -c1, 0, -radius_x, -c2, -radius_x, -radius_y);
+    cr.set_line_width (border.left);
+    cr.rel_line_to (0, -h + 2 * radius_y);
+    cr.rel_curve_to (0.0, -c2, radius_x - c1, -radius_y, radius_x, -radius_y);
+    cr.close_path ();
+//~     cr.stroke ();
+    
+    }
+/*    public void draw_border(Cairo.Context cr,double corner_radius){
+      double aspect = 1.0;
+      double radius = corner_radius / aspect;
+      double degrees = Math.PI / 180.0;
+      double x = 0;
+      double y = 0;
+      cr.save();
+      cr.new_sub_path ();
+      cr.arc ( x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
+//~       cr.set_source_rgba ( 0.0, 0, 0.5, 0.5);
+//~       cr.stroke ();
+      cr.arc ( x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
+      cr.arc ( x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
+      cr.arc ( x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+      cr.close_path ();
+
+//~       cr.set_source_rgb ( map.br.r, map.br.g, map.br.b);
+//~       cr.fill_preserve ();
+      cr.set_source_rgba ( 0.5, 0, 0, 1.0);
+      cr.set_line_width (5);
+      cr.stroke ();
+      cr.restore();
+    }*/
+  }//ThemeEngine
+  
+
 }//namespace Ltk
