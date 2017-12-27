@@ -869,10 +869,9 @@ namespace Ltk{
       set{
         if(value != this._min_width){
           GLib.stderr.printf("Widget min_width_old=%u new=%u\n",(uint)this._min_width,value);
+          this._min_width = value;
           if(this.A.width < this._min_width)
             this.damaged = true;
-
-          this._min_width = value;
           this.size_changed(this,this.A);
         }
         }
@@ -882,10 +881,9 @@ namespace Ltk{
       get{ return  this._min_height;}
       set{
         if(value != this._min_height){
+          this._min_height = value;
           if(this.A.height < this._min_height)
             this.damaged = true;
-
-          this._min_height = value;
           this.size_changed(this,this.A);
         }
         }
@@ -958,7 +956,7 @@ namespace Ltk{
     private bool _damaged;
     public bool damaged{
       get {return _damaged;}
-      set {_damaged = value; GLib.stderr.printf("Widget damaged=%u\n",(uint)_damaged);}
+      set {_damaged = value; GLib.stderr.printf("--- Widget damaged=%u width=%u height=%u childs=%u\n",(uint)_damaged,this.A.width,this.A.height, this.childs.count);}
       default = true;
     }
 
@@ -1007,6 +1005,7 @@ namespace Ltk{
     private uint size_update_width_serial = 0;
     private uint size_update_height_serial = 0;
     private uint size_update_childs = 0;
+    private uint8 color=28;
     public Container(){
       base();
       this.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
@@ -1290,7 +1289,7 @@ namespace Ltk{
       foreach(var w in this.childs){
             if(this.place_policy == SOptions.place_horizontal){
               _y = (this.A.height-w.A.height)/2;
-              if( _x != w.A.x || _y != w.A.y ){
+              if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
                 w.damaged=true;
               }
               w.A.x = _x;
@@ -1298,7 +1297,7 @@ namespace Ltk{
               _x+=w.A.width;
             }else{
               _x = (this.A.width-w.A.width)/2;
-              if( _x != w.A.x || _y != w.A.y ){
+              if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
                 w.damaged=true;
               }
               w.A.x = _x;
@@ -1320,13 +1319,26 @@ namespace Ltk{
           GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
           cr.rectangle (0, 0, this.A.width, this.A.height);
           cr.stroke ();
+          cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
+          cr.rectangle (0, 0,this.A.width/*+border.left+border.right*/, this.A.height/*+border.top+border.bottom*/);
+          cr.fill ();
+          this.color += 100;
           cr.restore();
         }
         foreach(var w in this.childs){
           cr.save();
-  //~           cr.move_to ();
-            if(w.damaged || w is Ltk.Container){
-//~               w.damaged=true;//force
+            if(w.damaged || w is Ltk.Container){//always propagate draw for container childs
+              if(!(w is Ltk.Container)){//container will draw it own background
+                cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
+                uint _x = ( this.place_policy == SOptions.place_horizontal ? w.A.x : 0),
+                     _y = ( this.place_policy == SOptions.place_horizontal ? 0 : w.A.y),
+                     _w = ( this.place_policy == SOptions.place_horizontal ? w.A.width : this.A.width/*+border.left+border.right*/),
+                     _h = ( this.place_policy == SOptions.place_horizontal ? this.A.height /*+border.top+border.bottom*/ : w.A.height );
+                cr.rectangle (_x,_y,_w,_h );
+                cr.fill ();//repaint part of this container background
+//~                 GLib.stderr.printf( "childs draw xy=%u,%u  wh=%u,%u\n",_x,_y,_w,_h);
+                this.color += 100;
+              }
               GLib.stderr.printf( "childs draw %d\n",(int)w.A.width);
               cr.translate (w.A.x,w.A.y);
               cr.rectangle (0, 0,w.A.width/*+border.left+border.right*/, w.A.height/*+border.top+border.bottom*/);
@@ -1336,8 +1348,7 @@ namespace Ltk{
 
           cr.restore();
           }//foreach
-        return base.draw(cr);
-        this.damaged = false;
+        return base.draw(cr);//widget
       }//draw
 
   }//class container
@@ -1393,8 +1404,7 @@ namespace Ltk{
 //~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
 //~       this.A.width = this.min_width;
 //~       this.A.height = this.min_height;
-      return base.draw(cr);
-      this.damaged=false;
+      return base.draw(cr);//Container
     }//draw
 
     private void on_xcb_window_size_change(uint width,uint height){
