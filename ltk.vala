@@ -580,7 +580,6 @@ namespace Ltk{
                   }else if(e.data.data32[0] == Global.net_wm_ping_atom){
                      GLib.stderr.printf("Global.net_wm_ping_atom\n");
                   }else if(e.data.data32[0] == Global.deleteWindowAtom){
-      //~                 printf("done\n");
                       _continue = this.on_quit();//true to quit, false to continue
                       if(_continue){
                         _continue = false;
@@ -644,6 +643,7 @@ namespace Ltk{
     }//clear_area
 
     public void damage(uint x,uint y,uint width,uint height){
+      GLib.stderr.printf( "XCB **** damage");
       this.damage_region.x = uint.min(this.damage_region.x, x);
       this.damage_region.y = uint.min(this.damage_region.y, y);
       this.damage_region.width = uint.max(this.damage_region.width, x+width);//x2
@@ -681,6 +681,7 @@ namespace Ltk{
     public signal bool on_mouse_leave(uint x, uint y);
     public signal bool on_key_press(uint keycode, uint state);
     public signal bool on_key_release(uint keycode, uint state);
+    [Signal (run="last",detailed=false)]
     public virtual signal bool on_quit(){
       GLib.stderr.printf("Xcbwindow.on_quit\n");
       //https://mail.gnome.org/archives/vala-list/2011-October/msg00103.html
@@ -791,7 +792,7 @@ namespace Ltk{
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
 
           while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
-            GLib.stderr.printf( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
+//~             GLib.stderr.printf( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
@@ -861,7 +862,7 @@ namespace Ltk{
 
   /********************************************************************/
   public class Widget : GLib.Object{
-    public weak Widget? parent = null;
+    public weak Container? parent = null;
     public WidgetList childs;
     private uint _min_width;
     public uint min_width{
@@ -927,8 +928,6 @@ namespace Ltk{
       default = SOptions.place_horizontal;
     }
 
-    public signal void size_changed(Widget src,Allocation old);//for parents
-
     public virtual uint get_prefered_width(){
       return this.min_width;
     }
@@ -956,13 +955,18 @@ namespace Ltk{
     private bool _damaged;
     public bool damaged{
       get {return _damaged;}
-      set {_damaged = value; GLib.stderr.printf("--- Widget damaged=%u width=%u height=%u childs=%u\n",(uint)_damaged,this.A.width,this.A.height, this.childs.count);}
+      set {
+        _damaged = value;
+        if(_damaged)
+          send_damage();
+        GLib.stderr.printf("--- Widget damaged=%u width=%u height=%u childs=%u\n",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
+        }
       default = true;
     }
 
     public Ltk.ThemeEngine engine;
 
-    public Widget(Widget? parent = null){
+    public Widget(Container? parent = null){
       GLib.Object();
       this.childs = new WidgetList();
 //~       this.x = this.y = 0;
@@ -998,12 +1002,36 @@ namespace Ltk{
     public virtual void hide(){
       this.visible = false;
     }
+    public Window? get_top_window(){
+      Container? w = this.parent;
+      while( w != null && w.parent !=null){
+        w = w.parent;
+      }
+      if(w is Window){
+        return (Window)w;
+      }else{
+        return null;
+      }
+    }
+    public void send_damage(Widget w = this,uint sx = this.A.x,uint sy = this.A.y,uint swidth = this.A.width,uint sheight = this.A.height){
+//~        GLib.stderr.printf("Widget send_damage\n");
+       var win = get_top_window();
+//~        GLib.stderr.printf("Widget send_damage %u\n",(uint)win);
+       if(win != null){
+          win.damage(w,sx,sy,swidth,sheight);
+        }
+//~       GLib.Signal.emit_by_name(((Widget)this),"damage2",null,this.A.x,this.A.y,this.A.width,this.A.height);
+    }
+    public signal void size_changed(Widget src,Allocation old);//for parents
+//~     [Signal (action=true, detailed=true, run=true, no_recurse=true, no_hooks=true)]
+//~     [Signal (run="first")]
+    
     public virtual bool on_mouse_move(uint x, uint y){return true;}
-    public virtual bool on_mouse_enter(uint x, uint y){return true;}
-    public virtual bool on_mouse_leave(uint x, uint y){return true;}
+    public virtual bool on_mouse_enter(uint x, uint y){ this.engine.state |= StyleState.hover; this.damaged = true; return true;}
+    public virtual bool on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; this.damaged = true; return true;}
     public virtual bool on_key_press(uint keycode, uint state){return true;}
     public virtual bool on_key_release(uint keycode, uint state){return true;}
-  }
+  }//class Widget
   /********************************************************************/
   public class Container: Widget{
     private bool _calculating_size = false;
@@ -1336,14 +1364,17 @@ namespace Ltk{
 
             if(w.damaged || w is Ltk.Container){//always propagate draw for container childs
               if(!(w is Ltk.Container)){//container will draw it own background
-                     dx = ( this.place_policy == SOptions.place_horizontal ? w.A.x    : this.A.x );
-                     dy = ( this.place_policy == SOptions.place_horizontal ? this.A.y : w.A.y );
-                uint _w = ( this.place_policy == SOptions.place_horizontal ? w.A.width     : this.A.width ),
+                uint _x = ( this.place_policy == SOptions.place_horizontal ? w.A.x    : this.A.x ),
+                     _y = ( this.place_policy == SOptions.place_horizontal ? this.A.y : w.A.y ),
+                     _w = ( this.place_policy == SOptions.place_horizontal ? w.A.width     : this.A.width ),
                      _h = ( this.place_policy == SOptions.place_horizontal ? this.A.height : w.A.height   );
+                    dx = _x;
+                    dy = _y;
                     cr.device_to_user(ref dx,ref dy);
                     cr.translate (dx, dy);
                     this.engine.begin(_w,_h);//repaint container background under widget, recover background if widget become smaller
                     this.engine.draw_box(cr);
+                    this.send_damage(this,_x,_y,_w,_h);
               }
 
               dx=w.A.x;
@@ -1369,6 +1400,7 @@ namespace Ltk{
     private bool _calculating_size = false;
     private string? title = null;
     string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
+    private unowned Widget? previous_widget_under_mouse = null;
 
     public Window(){
 
@@ -1379,7 +1411,16 @@ namespace Ltk{
       this.window.size_changed.connect(on_xcb_window_size_change);
       this.window.draw.connect(this.draw);
       this.window.on_mouse_move.connect(this._on_mouse_move);
-//~       this.window.on_quit.connect_after(()=>{  GLib.stderr.printf("Window window.on_quit\n"); return false;});
+
+//~       this.damage.connect((widget,x,y,w,h)=>{});
+
+//~       GLib.Signal.connect_swapped(w,"damage2",(GLib.Callback)this.on_damage222,this);
+      
+//~       this.window.on_quit.connect(()=>{
+//~         GLib.Signal.stop_emission_by_name(this.window,"on-quit");
+//~         GLib.stderr.printf("Window window.on_quit\n");
+//~         return false;
+//~         });
 //~       return base(null);
     }
 
@@ -1457,19 +1498,15 @@ namespace Ltk{
     public void load_font_with_size(string fpatch,uint size){
       this.window.load_font_with_size(fpatch, size);
     }
-    public void damage(uint x,uint y,uint width,uint height){
-//~       this.damaged=true;
-      this.window.damage(x, y, width, height);
-    }
 
     public override void show(){
       base.show();
       this.window.show();
     }
 
-    private Widget? find_mouse_child(Container cont, uint x, uint y){
+    private unowned Widget? find_mouse_child(Container cont, uint x, uint y){
       foreach(var w in cont.childs){
-          GLib.stderr.printf( "> %u < %u < %u ,  %u < %u < %u  \n",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
+//~           GLib.stderr.printf( "> %u < %u < %u ,  %u < %u < %u  \n",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
 
         if( ( x > w.A.x  && x < (w.A.x + w.A.width) ) &&
             ( y > w.A.y  && y < (w.A.y + w.A.height) ) ){
@@ -1481,15 +1518,47 @@ namespace Ltk{
       }
       return null;
     }
-
+    private unowned Widget? find_mouse_child_up(Container cont, uint x, uint y){
+      unowned Widget? w = this.find_mouse_child(cont,x,y);
+      if(w == null && cont.parent != null){
+        return this.find_mouse_child_up(cont.parent,x,y);
+      }
+      return w;
+    }
     private bool _on_mouse_move(uint x, uint y){
-      text="on_mouse_move=%u,%u".printf(x,y);
-      var w = this.find_mouse_child(this,x,y);
-      if(w != null){
-        GLib.stderr.printf( "window child under mouse is wh=%u,%u\n",w.A.width,w.A.height);
+//~       text="on_mouse_move=%u,%u".printf(x,y);
+      if(this.previous_widget_under_mouse == null){
+        this.previous_widget_under_mouse = this.find_mouse_child(this,x,y);
+         if(this.previous_widget_under_mouse != null){
+           Widget w = this.previous_widget_under_mouse;//take owner
+           w.on_mouse_enter(x,y);
+           return true;
+         }
+      }else{
+        Widget w = this.previous_widget_under_mouse;
+        if( !( ( x > w.A.x  && x < (w.A.x + w.A.width) ) &&
+               ( y > w.A.y  && y < (w.A.y + w.A.height) ) ) ){
+                 w.on_mouse_leave(x,y);
+                 this.previous_widget_under_mouse = this.find_mouse_child_up(w.parent,x,y);
+                 if(this.previous_widget_under_mouse != null){
+                   w = this.previous_widget_under_mouse;//take owner
+                   w.on_mouse_enter(x,y);
+                   return true;
+                 }
+        }
+      }
+      if(this.previous_widget_under_mouse != null){
+        Widget w = this.previous_widget_under_mouse;//take owner
+        w.on_mouse_move(x,y);
+//~         GLib.stderr.printf( "window child under mouse is wh=%u,%u\n",
+//~             this.previous_widget_under_mouse.A.width,
+//~             this.previous_widget_under_mouse.A.height);
       }
 //~       this.damage(0, A.height-20, this.A.width, 20);
       return true;
+    }
+    public virtual signal void damage(Widget? src,uint x,uint y,uint width,uint height){
+      this.window.damage(x,y,width,height);
     }
     /*public virtual bool on_mouse_move(uint x, uint y){return true;}
     public virtual bool on_mouse_enter(uint x, uint y){return true;}
