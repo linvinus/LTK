@@ -501,13 +501,6 @@ namespace Ltk{
       }
     }
 
-    public void load_font_with_size(string fpatch,uint size){
-      var F = FontLoader.load(fpatch);
-      this.cr.set_font_face(F);
-      this.cr.set_font_size (size);
-    }
-
-
     public void on_configure(Xcb.ConfigureNotifyEvent e){
 
   //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
@@ -856,7 +849,6 @@ namespace Ltk{
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
 //~       Global.windows.remove_all();
       //~     surface.finish();
-    FontLoader.destroy();
 
 //~     GLib.stderr.printf ("Global.C.unref\n");
 //~     GLib.Source.remove(Global.xcb_source);
@@ -1515,9 +1507,6 @@ namespace Ltk{
 
     public void set_title(string title){
       this.window.set_title(title);
-    }
-    public void load_font_with_size(string fpatch,uint size){
-      this.window.load_font_with_size(fpatch, size);
     }
 
     public override void show(){
