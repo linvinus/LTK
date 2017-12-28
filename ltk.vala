@@ -131,7 +131,7 @@ namespace Ltk{
     private int CompareWidth (Widget? a, Widget? b){
       if(a == null || b == null)
         return 0;
-//~       GLib.stderr.printf("  ### a=%u > b=%u\n", a.min_width , b.min_width);
+//~       debug("  ### a=%u > b=%u\n", a.min_width , b.min_width);
       if(a.min_width < b.min_width){
         return 1;
       }else if(a.min_width > b.min_width){
@@ -394,18 +394,17 @@ namespace Ltk{
       //WM_CLIENT_MACHINE
       uint8  machine_name[1024];
       if(Posix.gethostname((char[])machine_name) == 0){
-        GLib.stderr.printf("XcbWindow machine_name=%s length=%d\n",(string)machine_name,((string)machine_name).length);
+        debug("XcbWindow machine_name=%s length=%d\n",(string)machine_name,((string)machine_name).length);
         Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
       }
 
       this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.min_width, (int)this.min_height);
       this.cr = new Cairo.Context(this.surface);
-
       Global.windows.insert(this.window,this);
     }//XcbWindow
 
     ~XcbWindow(){
-      GLib.stderr.printf("~XcbWindow fd=%u\n",Global.C.get_file_descriptor());
+      debug("~XcbWindow fd=%u\n",Global.C.get_file_descriptor());
       this.surface.finish();//When the last call to cairo_surface_destroy() decreases the reference count to zero, cairo will call cairo_surface_finish()
 
       Global.C.free_gc(this.pixmap_gc);
@@ -415,7 +414,7 @@ namespace Ltk{
 
       if(Global.windows.lookup(this.window)!=null){
         Global.windows.remove(this.window);
-        GLib.stderr.printf("~XcbWindow %u\n",this.window);
+        debug("~XcbWindow %u\n",this.window);
       }
 
       do{
@@ -504,7 +503,7 @@ namespace Ltk{
     public void on_configure(Xcb.ConfigureNotifyEvent e){
 
   //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
-  //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d\n",
+  //~     debug( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d\n",
   //~                       (int)e.x,
   //~                       (int)e.y,
   //~                       (int)e.width,
@@ -513,7 +512,7 @@ namespace Ltk{
   //~                       (int)e.event,
   //~                       (int)e.window
   //~                       );
-      GLib.stderr.printf( "on_configure w=%u h=%u \n", this.min_width,this.min_height);
+      debug( "on_configure w=%u h=%u \n", this.min_width,this.min_height);
       if( (e.width == 1 && e.height == 1) && (this.min_width != 1 && this.min_height != 1))
         return;//skip first map
 
@@ -528,7 +527,7 @@ namespace Ltk{
         uint _h = this.min_height;
         this.size_changed(_w,_h);
       }
-      GLib.stderr.printf( "on_configure2 w=%u h=%u \n", this.min_width,this.min_height);
+      debug( "on_configure2 w=%u h=%u \n", this.min_width,this.min_height);
 
       /*
        * there is no way to resize X11 pixmap,
@@ -542,17 +541,17 @@ namespace Ltk{
 
 //~         this.surface.set_drawable(this.pixmap,(int)this.min_width,(int)this.min_height);
         cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.min_width,(int)this.min_height);
-  //~     GLib.stderr.printf( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
+  //~     debug( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
 
     }
 
     public bool process_event(Xcb.GenericEvent event){
       bool _continue = true;
 
-  //~     GLib.stderr.printf( "!!!!!!!!!!!event");
+  //~     debug( "!!!!!!!!!!!event");
   //~     while (( (event = Global.C.wait_for_event()) != null ) && !finished ) {
 //~       while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
-  //~       GLib.stderr.printf( "event=%d expose=%d map=%d\n",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
+  //~       debug( "event=%d expose=%d map=%d\n",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
           switch (event.response_type & ~0x80) {
             case Xcb.EXPOSE:
                 /* Avoid extra redraws by checking if this is
@@ -561,17 +560,17 @@ namespace Ltk{
                  Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
                 if (e.count != 0)
                     break;
-//~                 GLib.stderr.printf( "!!!!!!!!!!!event xy=%u,%u %ux%u count=%u\n",e.x, e.y, e.width, e.height,e.count);
+//~                 debug( "!!!!!!!!!!!event xy=%u,%u %ux%u count=%u\n",e.x, e.y, e.width, e.height,e.count);
                 this.damage(e.x, e.y, e.width, e.height);
             break;
             case Xcb.CLIENT_MESSAGE:
                 Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
-                GLib.stderr.printf( "CLIENT_MESSAGE data32=%d name=%s deleteWindowAtom=%d\n", (int)e.data.data32[0],Global.C.get_atom_name_reply(Global.C.get_atom_name(e.data.data32[0])).name,(int)Global.net_wm_ping_atom);
+                debug( "CLIENT_MESSAGE data32=%d name=%s deleteWindowAtom=%d\n", (int)e.data.data32[0],Global.C.get_atom_name_reply(Global.C.get_atom_name(e.data.data32[0])).name,(int)Global.net_wm_ping_atom);
                 if(e.type == Global.atoms.lookup(atom_names.wm_protocols)){
                   if(e.data.data32[0] == Global.atoms.lookup(atom_names.wm_take_focus)){
                       this.on_focus();
                   }else if(e.data.data32[0] == Global.net_wm_ping_atom){
-                     GLib.stderr.printf("Global.net_wm_ping_atom\n");
+                     debug("Global.net_wm_ping_atom\n");
                   }else if(e.data.data32[0] == Global.deleteWindowAtom){
                       _continue = this.on_quit();//true to quit, false to continue
                       if(_continue){
@@ -617,11 +616,11 @@ namespace Ltk{
       if(y > this.min_height ) y = this.min_height;
       if((x + width) > this.min_width ) width = this.min_width - x;
       if((y + height) > this.min_height ) height = this.min_height - y;
-      GLib.stderr.printf( "XCB **** draw_area xy=%u,%u wh=%u,%u\n",x, y, width, height);
+      debug( "XCB **** draw_area xy=%u,%u wh=%u,%u\n",x, y, width, height);
       cr.save();
       cr.rectangle (x, y, width, height);
       cr.clip ();
-      this.draw(this.cr);
+      this.draw(cr);
       cr.restore();
       this.surface.flush();
       Global.C.copy_area(this.pixmap,
@@ -634,15 +633,16 @@ namespace Ltk{
                          (int16)width,
                          (int16)height);
       Global.C.flush();
+      debug( "XCB **** end");
     }//clear_area
 
     public void damage(uint x,uint y,uint width,uint height){
-      GLib.stderr.printf( "XCB **** damage");
+      debug( "XCB **** damage");
       this.damage_region.x = uint.min(this.damage_region.x, x);
       this.damage_region.y = uint.min(this.damage_region.y, y);
       this.damage_region.width = uint.max(this.damage_region.width, x+width);//x2
       this.damage_region.height = uint.max(this.damage_region.height, y+height);//y2
-      GLib.stderr.printf( "XCB **** damage xy=%u,%u wh=%u,%u\n",
+      debug( "XCB **** damage xy=%u,%u wh=%u,%u\n",
       this.damage_region.x,
       this.damage_region.y,
       this.damage_region.width,
@@ -683,7 +683,7 @@ namespace Ltk{
     public signal bool on_key_release(uint keycode, uint state);
     [Signal (run="last",detailed=false)]
     public virtual signal bool on_quit(){
-      GLib.stderr.printf("Xcbwindow.on_quit\n");
+      debug("Xcbwindow.on_quit\n");
       //https://mail.gnome.org/archives/vala-list/2011-October/msg00103.html
       return true;//default is to quit if no other handlers connected with connect_after;
     }
@@ -705,7 +705,28 @@ namespace Ltk{
     public static GLib.HashTable<Xcb.Window,unowned XcbWindow> windows;
     private static uint xcb_source;
 
+    private static void null_handler(string? domain, LogLevelFlags flags, string message) {
+          }
+
+    private static void print_handler(string? domain, LogLevelFlags flags, string message) {
+        GLib.stderr.printf("domain:%s message:%s\n",domain,message);
+        GLib.stderr.flush();
+          }
+
+
     public  static void Init(){
+        if(1==0) {
+          Log.set_handler(null,
+            LogLevelFlags.LEVEL_MASK &
+            (LogLevelFlags.LEVEL_DEBUG |
+            LogLevelFlags.LEVEL_MESSAGE |
+            LogLevelFlags.LEVEL_WARNING |
+            LogLevelFlags.LEVEL_INFO |
+            LogLevelFlags.LEVEL_CRITICAL), print_handler);
+
+        }else
+          Log.set_handler(null, LogLevelFlags.LEVEL_MASK & ~LogLevelFlags.LEVEL_ERROR, null_handler);
+
       Global.atoms = new GLib.HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
       Global.windows = new GLib.HashTable<Xcb.Window,XcbWindow> (direct_hash, direct_equal);
 //~       ((GLib.HashTable)Global.windows).ref();
@@ -713,7 +734,7 @@ namespace Ltk{
 
 
       if (Global.C.has_error() != 0) {
-              GLib.stderr.printf( "Could not connect to X11 server");
+              debug( "Could not connect to X11 server");
               GLib.Process.exit(1) ;
       }
 
@@ -771,13 +792,13 @@ namespace Ltk{
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
       Global.xcb_source = channel.add_watch(IOCondition.IN,  (source, condition) => {
           if (condition == IOCondition.HUP) {
-          GLib.stderr.printf ("The connection has been broken.\n");
+          debug ("The connection has been broken.\n");
           Global.loop.quit();
           return false;
           }
          Xcb.GenericEvent event;
          bool _return = true;
-//~           GLib.stderr.printf( "!!!!!!!!!!!event");
+//~           debug( "!!!!!!!!!!!event");
           /**
            * @brief Bit mask to find event type regardless of event source.
            *
@@ -792,7 +813,7 @@ namespace Ltk{
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
 
           while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
-//~             GLib.stderr.printf( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
+//~             debug( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
@@ -842,15 +863,15 @@ namespace Ltk{
 
     public static void run(){
       Global.loop.run ();
-      GLib.stderr.printf ("atoms.remove_all\n");
+      debug ("atoms.remove_all\n");
       Global.atoms.foreach((k,v)=>{ free((void*)v); });
       Global.atoms.remove_all();
-//~       GLib.stderr.printf ("windows.remove_all\n");
+//~       debug ("windows.remove_all\n");
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
 //~       Global.windows.remove_all();
       //~     surface.finish();
 
-//~     GLib.stderr.printf ("Global.C.unref\n");
+//~     debug ("Global.C.unref\n");
 //~     GLib.Source.remove(Global.xcb_source);
 
 //~     surface.destroy();
@@ -868,7 +889,7 @@ namespace Ltk{
       get{ return  this._min_width;}
       set{
         if(value != this._min_width){
-          GLib.stderr.printf("Widget min_width_old=%u new=%u\n",(uint)this._min_width,value);
+          debug("Widget min_width_old=%u new=%u\n",(uint)this._min_width,value);
           this._min_width = value;
           if(this.A.width < this._min_width)
             this.damaged = true;
@@ -959,7 +980,7 @@ namespace Ltk{
         if(_damaged){
           this.send_damage();
         }
-        GLib.stderr.printf("--- Widget damaged=%u width=%u height=%u childs=%u\n",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
+        debug("--- Widget damaged=%u width=%u height=%u childs=%u\n",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
         }
       default = true;
     }
@@ -981,7 +1002,7 @@ namespace Ltk{
 
     ~Widget(){
       this.childs.remove_all();
-      GLib.stderr.printf("~Widget\n");
+      debug("~Widget\n");
     }
 
     public virtual bool draw(Cairo.Context cr){
@@ -1002,8 +1023,8 @@ namespace Ltk{
     public virtual void hide(){
       this.visible = false;
     }
-    public Window? get_top_window(){
-      Container? w = this.parent;
+    public weak Window? get_top_window(){
+      unowned Container? w = this.parent;
       while( w != null && w.parent !=null){
         w = w.parent;
       }
@@ -1014,9 +1035,9 @@ namespace Ltk{
       }
     }
     public void send_damage(Widget w = this,uint sx = this.A.x,uint sy = this.A.y,uint swidth = this.A.width,uint sheight = this.A.height){
-//~        GLib.stderr.printf("Widget send_damage\n");
+//~        debug("Widget send_damage\n");
        var win = get_top_window();
-//~        GLib.stderr.printf("Widget send_damage %u\n",(uint)win);
+//~        debug("Widget send_damage %u\n",(uint)win);
        if(win != null){
           win.damage(w,sx,sy,swidth,sheight);
         }
@@ -1027,8 +1048,8 @@ namespace Ltk{
 //~     [Signal (run="first")]
 
     public virtual bool on_mouse_move(uint x, uint y){return true;}
-    public virtual bool on_mouse_enter(uint x, uint y){ this.engine.state |= StyleState.hover; this.damaged = true; return true;}
-    public virtual bool on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; this.damaged = true; return true;}
+    public virtual bool on_mouse_enter(uint x, uint y){ this.engine.state |= StyleState.hover; /*this.damaged = true;*/ return true;}
+    public virtual bool on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; /*this.damaged = true;*/ return true;}
     public virtual bool on_key_press(uint keycode, uint state){return true;}
     public virtual bool on_key_release(uint keycode, uint state){return true;}
   }//class Widget
@@ -1061,7 +1082,7 @@ namespace Ltk{
           src.A.height = src.min_height;
         }
 
-        GLib.stderr.printf("diff_width=%d diff_height=%d\n",diff_width,diff_height);
+        debug("diff_width=%d diff_height=%d\n",diff_width,diff_height);
 
         if(diff_height != 0 || diff_width != 0){
             this.update_childs_sizes();
@@ -1095,7 +1116,7 @@ namespace Ltk{
     }//update_childs_sizes
 
     public void update_childs_position(){
-      GLib.stderr.printf("@@@ update_childs_position xy=%u,%u count=%u\n",this.A.x,this.A.y, this.childs.count);
+      debug("@@@ update_childs_position xy=%u,%u count=%u\n",this.A.x,this.A.y, this.childs.count);
 
       //calculate position
       uint _x = this.A.x, _y = this.A.y, _w = 0, _h = 0;
@@ -1164,13 +1185,13 @@ namespace Ltk{
           _h = w.get_prefered_height();
           height_min = uint.max(height_min, _h);
           height_max = (this.place_policy == SOptions.place_vertical ? height_max + _h : height_min);
-          GLib.stderr.printf( "get_height_for_width1 min=%u max=%u %s\n",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+          debug( "get_height_for_width1 min=%u max=%u %s\n",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_height_serial = this.size_changed_serial;
       }else{
         height_min = this.min_height;
         height_max = height_min;//uint.max(this.A.height,height_min);
-        GLib.stderr.printf( "get_height_for_width2 min=%u max=%u \n",height_min,height_max );
+        debug( "get_height_for_width2 min=%u max=%u \n",height_min,height_max );
       }
     }//get_height_for_width
 
@@ -1181,18 +1202,18 @@ namespace Ltk{
           _w = w.get_prefered_width();
           width_min = uint.max( width_min, _w );
           width_max = (this.place_policy == SOptions.place_horizontal ? width_max + _w : width_min);
-          GLib.stderr.printf( "get_width_for_height1 min=%u max=%u %s\n",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+          debug( "get_width_for_height1 min=%u max=%u %s\n",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_width_serial = this.size_changed_serial;
       }else{
         width_min = this.min_width;
         width_max = width_min;//uint.max(this.A.width,width_min);
       }
-      GLib.stderr.printf( "get_width_for_height2 min=%u max=%u\n",width_min,width_max);
+      debug( "get_width_for_height2 min=%u max=%u\n",width_min,width_max);
     }//get_width_for_height
 
     public virtual void calculate_size(ref uint calc_width,ref uint calc_height, Widget calc_initiator){
-      GLib.stderr.printf( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
+      debug( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
 
       if(this._calculating_size)
         return;
@@ -1205,16 +1226,16 @@ namespace Ltk{
          this.A.width >= this.min_width &&
          this.A.height >= this.min_height ){
             this._calculating_size=false;
-            GLib.stderr.printf( "container quick end. calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
+            debug( "container quick end. calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
             return;
       }
       this._calculating_size=true;
 
       this.size_update_childs = this.size_changed_serial;
 
-        GLib.stderr.printf( "this.fill_mask=%d\n",this.fill_mask );
-        GLib.stderr.printf( "calc_width=%u wmax=%u\n",calc_width , this.min_width );
-        GLib.stderr.printf( "calc_height=%u hmax=%u\n",calc_height , this.min_height );
+        debug( "this.fill_mask=%d\n",this.fill_mask );
+        debug( "calc_width=%u wmax=%u\n",calc_width , this.min_width );
+        debug( "calc_height=%u hmax=%u\n",calc_height , this.min_height );
 
         //just to be shure
         if(calc_width < this.min_width)  { calc_width  = this.min_width; }
@@ -1223,18 +1244,18 @@ namespace Ltk{
           if( calc_width != this.A.width || calc_height != this.A.height ){
             this.damaged=true;
           }
-          GLib.stderr.printf("damaged=%u calc=%u,%u A=%u,%u\n",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
+          debug("damaged=%u calc=%u,%u A=%u,%u\n",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
 
           this.A.width = calc_width;//apply new allocation
           this.A.height = calc_height;
 
         if(this.place_policy == Ltk.SOptions.place_horizontal){
-          GLib.stderr.printf("SOptions.place_horizontal min=%u,%u A=%u,%u\n",this.min_width,this.min_height,this.A.width,this.A.height);
+          debug("SOptions.place_horizontal min=%u,%u A=%u,%u\n",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
 
           uint extra_width_delta = this.A.width;
 
-          GLib.stderr.printf("childs.length=%u \n",this.childs.count);
+          debug("childs.length=%u \n",this.childs.count);
 
           if(extra_width_delta > this.min_width){
             extra_width_delta -= this.childs.fixed_width;
@@ -1243,7 +1264,7 @@ namespace Ltk{
             extra_width_delta = 0;
           }
 
-          GLib.stderr.printf("w=%u extra_width_delta=%u\n",this.A.width, extra_width_delta);
+          debug("w=%u extra_width_delta=%u\n",this.A.width, extra_width_delta);
 
           //_variable_width is sorted,first bigger then smaller
           foreach(var w in this.childs.variable_width()){
@@ -1277,7 +1298,7 @@ namespace Ltk{
             }else{
               new_height = w.min_height;
             }
-            GLib.stderr.printf("A w=%u h=%u\n",new_width,new_height);
+            debug("A w=%u h=%u\n",new_width,new_height);
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
             }
@@ -1295,11 +1316,11 @@ namespace Ltk{
 
           }//foreach childs
         }else{//SOptions.place_vertical
-          GLib.stderr.printf("SOptions.place_vertical min=%u,%u A=%u,%u\n",this.min_width,this.min_height,this.A.width,this.A.height);
+          debug("SOptions.place_vertical min=%u,%u A=%u,%u\n",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
           uint extra_height_delta = this.A.height;
 
-          GLib.stderr.printf("childs.length=%u \n",this.childs.count);
+          debug("childs.length=%u \n",this.childs.count);
 
           if(extra_height_delta > this.min_height){
             extra_height_delta -= this.childs.fixed_height;
@@ -1308,7 +1329,7 @@ namespace Ltk{
             extra_height_delta = 0;
           }
 
-          GLib.stderr.printf("h=%u extra_height_delta=%u\n",this.A.height, extra_height_delta);
+          debug("h=%u extra_height_delta=%u\n",this.A.height, extra_height_delta);
 
 
           //_variable_height is sorted,first bigger then smaller
@@ -1345,7 +1366,7 @@ namespace Ltk{
               new_width = w.get_prefered_width();
             }
 
-            GLib.stderr.printf("A w=%u h=%u\n",w.A.width,w.A.height);
+            debug("A w=%u h=%u\n",w.A.width,w.A.height);
 
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
@@ -1362,13 +1383,13 @@ namespace Ltk{
             w.A.options |= w.fill_mask;
           }//foreach childs
         }//SOptions.place_vertical
-      GLib.stderr.printf( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
+      debug( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
       this._calculating_size=false;
     }//calculate_size
 
     public override bool draw(Cairo.Context cr){
         var _ret = base.draw(cr);//widget
-        GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
+        debug( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
 
         double dx=0,dy=0;
 
@@ -1393,7 +1414,7 @@ namespace Ltk{
               dx=w.A.x;
               dy=w.A.y;
               cr.device_to_user(ref dx,ref dy);
-//~               GLib.stderr.printf( "+++ childs draw %d [%f,%f]\n",(int)w.A.width,dx,dy);
+//~               debug( "+++ childs draw %d [%f,%f]\n",(int)w.A.width,dx,dy);
               cr.translate (dx, dy);
               cr.rectangle (0, 0, w.A.width , w.A.height );
               cr.clip ();
@@ -1413,7 +1434,7 @@ namespace Ltk{
     private bool _calculating_size = false;
     private string? title = null;
     string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
-    private unowned Widget? previous_widget_under_mouse = null;
+    private weak Widget? previous_widget_under_mouse = null;
 
     public Window(){
 
@@ -1431,22 +1452,22 @@ namespace Ltk{
 
 //~       this.window.on_quit.connect(()=>{
 //~         GLib.Signal.stop_emission_by_name(this.window,"on-quit");
-//~         GLib.stderr.printf("Window window.on_quit\n");
+//~         debug("Window window.on_quit\n");
 //~         return false;
 //~         });
 //~       return base(null);
     }
 
     ~Window(){
-      GLib.stderr.printf("~Window\n");
+      debug("~Window\n");
     }
 
 
     public override bool draw(Cairo.Context cr){
-      GLib.stderr.printf( "window draw w=%u h=%u childs=%u damage=%u\n", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
+      debug( "window draw w=%u h=%u childs=%u damage=%u\n", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
       var was_damaged = this.damaged;
       var _ret = base.draw(cr);//Container
-      if(1==1 ||was_damaged){
+      if(was_damaged){
         cr.save();
           /*cr.set_source_rgb(0, 1, 0);
           cr.paint();
@@ -1468,7 +1489,7 @@ namespace Ltk{
           cr.stroke ();
         cr.restore();
       }
-//~       GLib.stderr.printf( "childs draw %d\n",(int)this.childs.length());
+//~       debug( "childs draw %d\n",(int)this.childs.length());
 //~       this.A.width = this.min_width;
 //~       this.A.height = this.min_height;
       return _ret;
@@ -1482,12 +1503,12 @@ namespace Ltk{
     }
 
     public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget calc_initiator){
-      GLib.stderr.printf( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      debug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       this._calculating_size=true;
       uint oldw = this.A.width;
       uint oldh = this.A.height;
       base.calculate_size(ref calc_width,ref calc_height, calc_initiator);
-      GLib.stderr.printf( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      debug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       if(calc_width != oldw||
          calc_height != oldh){
            this.window.resize_and_remember(calc_width,calc_height);
@@ -1499,7 +1520,7 @@ namespace Ltk{
 
 
     public void size_request(uint new_width, uint new_height){
-      GLib.stderr.printf( "window size_request=%u,%u\n", new_width,new_height);
+      debug( "window size_request=%u,%u\n", new_width,new_height);
       if(this.A.width != new_width || this.A.height != new_height){
         this.window.resize(new_width,new_height);
       }
@@ -1514,26 +1535,29 @@ namespace Ltk{
       this.window.show();
     }
 
-    private unowned Widget? find_mouse_child(Container cont, uint x, uint y){
-      foreach(var w in cont.childs){
-//~           GLib.stderr.printf( "> %u < %u < %u ,  %u < %u < %u  \n",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
+    private weak Widget? find_mouse_child(Container cont, uint x, uint y){
+      foreach(Widget w in cont.childs){
+//~           debug( "> %u < %u < %u ,  %u < %u < %u  \n",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
 
         if( ( x > w.A.x  && x < (w.A.x + w.A.width) ) &&
             ( y > w.A.y  && y < (w.A.y + w.A.height) ) ){
           if(w is Container){
             return this.find_mouse_child((Container)w,x,y);
-          }else
-            return w;
+          }else{
+            weak Widget tmp = w;
+            return tmp;
+          }
         }
       }
       return null;
     }
-    private unowned Widget? find_mouse_child_up(Container cont, uint x, uint y){
-      unowned Widget? w = this.find_mouse_child(cont,x,y);
+    private weak Widget? find_mouse_child_up(Container cont, uint x, uint y){
+      Widget? w = this.find_mouse_child(cont,x,y);
       if(w == null && cont.parent != null){
         return this.find_mouse_child_up(cont.parent,x,y);
       }
-      return w;
+      weak Widget tmp = w;
+      return tmp;
     }
     private bool _on_mouse_move(uint x, uint y){
 //~       text="on_mouse_move=%u,%u".printf(x,y);
@@ -1560,7 +1584,7 @@ namespace Ltk{
       if(this.previous_widget_under_mouse != null){
         Widget w = this.previous_widget_under_mouse;//take owner
         w.on_mouse_move(x,y);
-//~         GLib.stderr.printf( "window child under mouse is wh=%u,%u\n",
+//~         debug( "window child under mouse is wh=%u,%u\n",
 //~             this.previous_widget_under_mouse.A.width,
 //~             this.previous_widget_under_mouse.A.height);
       }
@@ -1605,7 +1629,7 @@ namespace Ltk{
       engine.padding.right = 0;
     }
     public override bool draw(Cairo.Context cr){
-      GLib.stderr.printf( "Button draw %s\n",this.get_class().get_name());
+      debug( "Button draw %s\n",this.get_class().get_name());
         this.engine.begin(this.A.width,this.A.height);
         if(this.damaged){
          this.engine.draw_box(cr,this.engine.height / 3.0);
@@ -1613,6 +1637,7 @@ namespace Ltk{
 
          cr.translate (0,(double)(this.A.height/2));
          if(this.label != null){
+          cr.set_font_size (14.0);
           cr.set_source_rgb(engine.map.text.r,
                             engine.map.text.g,
                             engine.map.text.b);

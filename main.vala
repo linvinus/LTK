@@ -49,27 +49,27 @@ int main (string[] argv) {
 //~     container.add(button);
     bool tick = false;
     GLib.SourceFunc ontime = ()=>{
-      GLib.stderr.printf("GLib.Timeout\n");
+      debug("GLib.Timeout\n");
 //~       button.label += ""
       if(!tick){
         button2.min_width += 100;
       }else{
         button2.min_width -= 100;
       }
-      GLib.stderr.printf("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
+      debug("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
       Ltk.Container c = (Ltk.Container)button.parent;
 //~       uint oldw = c.width;
 //~       uint oldh = c.height;
 //~       c.calculate_size(ref oldw,ref oldh);
 //~       c.size_request(oldw, oldh);
 //~       window.update_childs_sizes();
-      GLib.stderr.printf("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
+      debug("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
 //~       window.damage(0,0,window.A.width,window.A.height);
 
       tick = !tick;
       return GLib.Source.CONTINUE;
       };
-    GLib.Timeout.add(5000,ontime);
+    GLib.Timeout.add(500,ontime);
 
     var container2 = new Ltk.Container();
     container2.place_policy = Ltk.SOptions.place_horizontal;
