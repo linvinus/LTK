@@ -624,6 +624,7 @@ namespace Ltk{
       if(y > this.min_height ) y = this.min_height;
       if((x + width) > this.min_width ) width = this.min_width - x;
       if((y + height) > this.min_height ) height = this.min_height - y;
+      GLib.stderr.printf( "XCB **** draw_area xy=%u,%u wh=%u,%u\n",x, y, width, height);
       cr.save();
       cr.rectangle (x, y, width, height);
       cr.clip ();
@@ -648,6 +649,11 @@ namespace Ltk{
       this.damage_region.y = uint.min(this.damage_region.y, y);
       this.damage_region.width = uint.max(this.damage_region.width, x+width);//x2
       this.damage_region.height = uint.max(this.damage_region.height, y+height);//y2
+      GLib.stderr.printf( "XCB **** damage xy=%u,%u wh=%u,%u\n",
+      this.damage_region.x,
+      this.damage_region.y,
+      this.damage_region.width,
+      this.damage_region.height);
       this.queue_draw();
     }
 
@@ -656,7 +662,8 @@ namespace Ltk{
                      this.damage_region.y,
                      this.damage_region.width-this.damage_region.x,
                      this.damage_region.height-this.damage_region.y );
-      this.draw_callback_timer = this.damage_region.x = this.damage_region.y = this.damage_region.width = this.damage_region.height = 0;
+      this.draw_callback_timer = this.damage_region.width = this.damage_region.height = 0;
+      this.damage_region.x = this.damage_region.y = (uint32)0xFFFFFFFF;
       return GLib.Source.REMOVE;//done
     }
 
@@ -957,8 +964,9 @@ namespace Ltk{
       get {return _damaged;}
       set {
         _damaged = value;
-        if(_damaged)
-          send_damage();
+        if(_damaged){
+          this.send_damage();
+        }
         GLib.stderr.printf("--- Widget damaged=%u width=%u height=%u childs=%u\n",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
         }
       default = true;
@@ -1025,7 +1033,7 @@ namespace Ltk{
     public signal void size_changed(Widget src,Allocation old);//for parents
 //~     [Signal (action=true, detailed=true, run=true, no_recurse=true, no_hooks=true)]
 //~     [Signal (run="first")]
-    
+
     public virtual bool on_mouse_move(uint x, uint y){return true;}
     public virtual bool on_mouse_enter(uint x, uint y){ this.engine.state |= StyleState.hover; this.damaged = true; return true;}
     public virtual bool on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; this.damaged = true; return true;}
@@ -1101,10 +1109,11 @@ namespace Ltk{
       uint _x = this.A.x, _y = this.A.y, _w = 0, _h = 0;
 
       foreach(var w in this.childs){
+            bool do_damage=false;
             if(this.place_policy == SOptions.place_horizontal){
               _y = this.A.y + ((this.A.height-w.A.height)/2);
               if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
-                w.damaged=true;
+                do_damage=true;
               }
               w.A.x = _x;
               w.A.y = _y;
@@ -1115,7 +1124,7 @@ namespace Ltk{
             }else{
               _x = this.A.x + (this.A.width - w.A.width)/2;
               if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
-                w.damaged=true;
+                do_damage=true;
               }
               w.A.x = _x;
               w.A.y = _y;
@@ -1123,6 +1132,18 @@ namespace Ltk{
                 ((Ltk.Container)w).update_childs_position();
               }
               _y+=w.A.height;
+            }
+            if(do_damage && !(w is Ltk.Container)){
+              w.damaged=true;
+              if(w.parent != null){
+                var P = w.parent;
+                uint Px = ( P.place_policy == SOptions.place_horizontal ? w.A.x    : P.A.x ),
+                     Py = ( P.place_policy == SOptions.place_horizontal ? P.A.y : w.A.y ),
+                     Pw = ( P.place_policy == SOptions.place_horizontal ? w.A.width     : P.A.width ),
+                     Ph = ( P.place_policy == SOptions.place_horizontal ? P.A.height : w.A.height   );
+                    P.send_damage(P,Px,Py,Pw,Ph);
+                 }
+
             }
       }
     }//update_childs_position
@@ -1374,7 +1395,7 @@ namespace Ltk{
                     cr.translate (dx, dy);
                     this.engine.begin(_w,_h);//repaint container background under widget, recover background if widget become smaller
                     this.engine.draw_box(cr);
-                    this.send_damage(this,_x,_y,_w,_h);
+                    //this.send_damage(this,_x,_y,_w,_h); don't send damage from draw
               }
 
               dx=w.A.x;
@@ -1415,7 +1436,7 @@ namespace Ltk{
 //~       this.damage.connect((widget,x,y,w,h)=>{});
 
 //~       GLib.Signal.connect_swapped(w,"damage2",(GLib.Callback)this.on_damage222,this);
-      
+
 //~       this.window.on_quit.connect(()=>{
 //~         GLib.Signal.stop_emission_by_name(this.window,"on-quit");
 //~         GLib.stderr.printf("Window window.on_quit\n");
