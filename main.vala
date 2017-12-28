@@ -70,7 +70,7 @@ int main (string[] argv) {
       tick = !tick;
       return GLib.Source.CONTINUE;
       };
-    GLib.Timeout.add(50000,ontime);
+    GLib.Timeout.add(5000,ontime);
 
     var container2 = new Ltk.Container();
     container2.place_policy = Ltk.SOptions.place_horizontal;

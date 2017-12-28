@@ -1063,7 +1063,41 @@ namespace Ltk{
       uint oldw = this.A.width;
       uint oldh = this.A.height;
       this.calculate_size(ref oldw,ref oldh,this);
+      this.update_childs_position();
     }//update_childs_sizes
+
+    public void update_childs_position(){
+      GLib.stderr.printf("@@@ update_childs_position xy=%u,%u count=%u\n",this.A.x,this.A.y, this.childs.count);
+
+      //calculate position
+      uint _x = this.A.x, _y = this.A.y, _w = 0, _h = 0;
+
+      foreach(var w in this.childs){
+            if(this.place_policy == SOptions.place_horizontal){
+              _y = this.A.y + ((this.A.height-w.A.height)/2);
+              if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
+                w.damaged=true;
+              }
+              w.A.x = _x;
+              w.A.y = _y;
+              if(w.damaged && w is Ltk.Container){
+                ((Ltk.Container)w).update_childs_position();
+              }
+              _x+=w.A.width;
+            }else{
+              _x = this.A.x + (this.A.width - w.A.width)/2;
+              if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
+                w.damaged=true;
+              }
+              w.A.x = _x;
+              w.A.y = _y;
+              if(w.damaged && w is Ltk.Container){
+                ((Ltk.Container)w).update_childs_position();
+              }
+              _y+=w.A.height;
+            }
+      }
+    }//update_childs_position
 
 
     public override uint get_prefered_width(){
@@ -1288,80 +1322,36 @@ namespace Ltk{
           }//foreach childs
         }//SOptions.place_vertical
       GLib.stderr.printf( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
-
-      //calculate position
-      uint _x = this.A.x, _y = this.A.y, _w = 0, _h = 0;
-
-      foreach(var w in this.childs){
-            if(this.place_policy == SOptions.place_horizontal){
-              _y = this.A.y + ((this.A.height-w.A.height)/2);
-              if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
-                w.damaged=true;
-              }
-              w.A.x = _x;
-              w.A.y = _y;
-              _x+=w.A.width;
-            }else{
-              _x = this.A.x + (this.A.width - w.A.width)/2;
-              if( _x != w.A.x || _y != w.A.y || this.damaged){//redraw all childs if container was damaged
-                w.damaged=true;
-              }
-              w.A.x = _x;
-              w.A.y = _y;
-              _y+=w.A.height;
-            }
-      }
       this._calculating_size=false;
     }//calculate_size
 
     public override bool draw(Cairo.Context cr){
-      cr.save();
         var _ret = base.draw(cr);//widget
-        cr.restore();
-        uint len = this.childs.count;
-//~         uint _x = 0, _y = 0, _w = 0, _h = 0;
+        GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
 
-//~         if(this.damaged){
-//~           cr.save();
-//~           cr.set_line_width(4);
-//~           cr.set_source_rgb(1, 0, 0);
-//~           GLib.stderr.printf( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
-//~           cr.rectangle (0, 0, this.A.width, this.A.height);
-//~           cr.stroke ();
-//~           cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
-//~           cr.rectangle (0, 0,this.A.width/*+border.left+border.right*/, this.A.height/*+border.top+border.bottom*/);
-//~           cr.fill ();
-//~           this.color += 100;
-//~         }
         double dx=0,dy=0;
 
         foreach(var w in this.childs){
           cr.save();
 
             if(w.damaged || w is Ltk.Container){//always propagate draw for container childs
-//~               if(!(w is Ltk.Container)){//container will draw it own background
-//~                 cr.set_source_rgb(0.5, (float)this.color/255.0, 0.5);
-//~                 uint _x = ( this.place_policy == SOptions.place_horizontal ? w.A.x : 0),
-//~                      _y = ( this.place_policy == SOptions.place_horizontal ? 0 : w.A.y),
-//~                      _w = ( this.place_policy == SOptions.place_horizontal ? w.A.width : this.A.width/*+border.left+border.right*/),
-//~                      _h = ( this.place_policy == SOptions.place_horizontal ? this.A.height /*+border.top+border.bottom*/ : w.A.height );
-//~                     cr.save();
-//~                     dx=_x;
-//~                     dy=_y;
-//~                     cr.device_to_user(ref dx,ref dy);
-//~                     cr.translate (dx, dy);
-//~                     this.engine.begin(_w,_h);
-//~                     this.engine.draw_box(cr);
-//~                     cr.restore();
-//~                 this.color += 100;
-//~               }
+              if(!(w is Ltk.Container)){//container will draw it own background
+                     dx = ( this.place_policy == SOptions.place_horizontal ? w.A.x    : this.A.x );
+                     dy = ( this.place_policy == SOptions.place_horizontal ? this.A.y : w.A.y );
+                uint _w = ( this.place_policy == SOptions.place_horizontal ? w.A.width     : this.A.width ),
+                     _h = ( this.place_policy == SOptions.place_horizontal ? this.A.height : w.A.height   );
+                    cr.device_to_user(ref dx,ref dy);
+                    cr.translate (dx, dy);
+                    this.engine.begin(_w,_h);//repaint container background under widget, recover background if widget become smaller
+                    this.engine.draw_box(cr);
+              }
 
               dx=w.A.x;
               dy=w.A.y;
               cr.device_to_user(ref dx,ref dy);
-              GLib.stderr.printf( "+++ childs draw %d [%f,%f]\n",(int)w.A.width,dx,dy);
+//~               GLib.stderr.printf( "+++ childs draw %d [%f,%f]\n",(int)w.A.width,dx,dy);
               cr.translate (dx, dy);
-              cr.rectangle (0, 0,w.A.width/*+border.left+border.right*/, w.A.height/*+border.top+border.bottom*/);
+              cr.rectangle (0, 0, w.A.width , w.A.height );
               cr.clip ();
               w.draw(cr);
             }
@@ -1433,6 +1423,7 @@ namespace Ltk{
     private void on_xcb_window_size_change(uint width,uint height){
         this.size_changed_serial++;
         this.calculate_size(ref width,ref height,this);
+        this.update_childs_position();
 //~         this.damaged=true;
     }
 
