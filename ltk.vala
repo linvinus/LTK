@@ -131,7 +131,7 @@ namespace Ltk{
     private int CompareWidth (Widget? a, Widget? b){
       if(a == null || b == null)
         return 0;
-//~       debug("  ### a=%u > b=%u\n", a.min_width , b.min_width);
+//~       debug("  ### a=%u > b=%u", a.min_width , b.min_width);
       if(a.min_width < b.min_width){
         return 1;
       }else if(a.min_width > b.min_width){
@@ -394,7 +394,7 @@ namespace Ltk{
       //WM_CLIENT_MACHINE
       uint8  machine_name[1024];
       if(Posix.gethostname((char[])machine_name) == 0){
-        debug("XcbWindow machine_name=%s length=%d\n",(string)machine_name,((string)machine_name).length);
+        debug("XcbWindow machine_name=%s length=%d",(string)machine_name,((string)machine_name).length);
         Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
       }
 
@@ -404,7 +404,7 @@ namespace Ltk{
     }//XcbWindow
 
     ~XcbWindow(){
-      debug("~XcbWindow fd=%u\n",Global.C.get_file_descriptor());
+      debug("~XcbWindow fd=%u",Global.C.get_file_descriptor());
       this.surface.finish();//When the last call to cairo_surface_destroy() decreases the reference count to zero, cairo will call cairo_surface_finish()
 
       Global.C.free_gc(this.pixmap_gc);
@@ -414,7 +414,7 @@ namespace Ltk{
 
       if(Global.windows.lookup(this.window)!=null){
         Global.windows.remove(this.window);
-        debug("~XcbWindow %u\n",this.window);
+        debug("~XcbWindow %u",this.window);
       }
 
       do{
@@ -503,7 +503,7 @@ namespace Ltk{
     public void on_configure(Xcb.ConfigureNotifyEvent e){
 
   //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
-  //~     debug( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d\n",
+  //~     debug( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d",
   //~                       (int)e.x,
   //~                       (int)e.y,
   //~                       (int)e.width,
@@ -512,7 +512,7 @@ namespace Ltk{
   //~                       (int)e.event,
   //~                       (int)e.window
   //~                       );
-      debug( "on_configure w=%u h=%u \n", this.min_width,this.min_height);
+      debug( "on_configure w=%u h=%u ", this.min_width,this.min_height);
       if( (e.width == 1 && e.height == 1) && (this.min_width != 1 && this.min_height != 1))
         return;//skip first map
 
@@ -527,7 +527,7 @@ namespace Ltk{
         uint _h = this.min_height;
         this.size_changed(_w,_h);
       }
-      debug( "on_configure2 w=%u h=%u \n", this.min_width,this.min_height);
+      debug( "on_configure2 w=%u h=%u ", this.min_width,this.min_height);
 
       /*
        * there is no way to resize X11 pixmap,
@@ -541,7 +541,7 @@ namespace Ltk{
 
 //~         this.surface.set_drawable(this.pixmap,(int)this.min_width,(int)this.min_height);
         cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.min_width,(int)this.min_height);
-  //~     debug( "on_map x,y=%d,%d w,h=%d,%d\n",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
+  //~     debug( "on_map x,y=%d,%d w,h=%d,%d",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
 
     }
 
@@ -551,7 +551,7 @@ namespace Ltk{
   //~     debug( "!!!!!!!!!!!event");
   //~     while (( (event = Global.C.wait_for_event()) != null ) && !finished ) {
 //~       while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
-  //~       debug( "event=%d expose=%d map=%d\n",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
+  //~       debug( "event=%d expose=%d map=%d",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
           switch (event.response_type & ~0x80) {
             case Xcb.EXPOSE:
                 /* Avoid extra redraws by checking if this is
@@ -560,17 +560,17 @@ namespace Ltk{
                  Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
                 if (e.count != 0)
                     break;
-//~                 debug( "!!!!!!!!!!!event xy=%u,%u %ux%u count=%u\n",e.x, e.y, e.width, e.height,e.count);
+//~                 debug( "!!!!!!!!!!!event xy=%u,%u %ux%u count=%u",e.x, e.y, e.width, e.height,e.count);
                 this.damage(e.x, e.y, e.width, e.height);
             break;
             case Xcb.CLIENT_MESSAGE:
                 Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
-                debug( "CLIENT_MESSAGE data32=%d name=%s deleteWindowAtom=%d\n", (int)e.data.data32[0],Global.C.get_atom_name_reply(Global.C.get_atom_name(e.data.data32[0])).name,(int)Global.net_wm_ping_atom);
+                debug( "CLIENT_MESSAGE data32=%d name=%s deleteWindowAtom=%d", (int)e.data.data32[0],Global.C.get_atom_name_reply(Global.C.get_atom_name(e.data.data32[0])).name,(int)Global.net_wm_ping_atom);
                 if(e.type == Global.atoms.lookup(atom_names.wm_protocols)){
                   if(e.data.data32[0] == Global.atoms.lookup(atom_names.wm_take_focus)){
                       this.on_focus();
                   }else if(e.data.data32[0] == Global.net_wm_ping_atom){
-                     debug("Global.net_wm_ping_atom\n");
+                     debug("Global.net_wm_ping_atom");
                   }else if(e.data.data32[0] == Global.deleteWindowAtom){
                       _continue = this.on_quit();//true to quit, false to continue
                       if(_continue){
@@ -616,7 +616,7 @@ namespace Ltk{
       if(y > this.min_height ) y = this.min_height;
       if((x + width) > this.min_width ) width = this.min_width - x;
       if((y + height) > this.min_height ) height = this.min_height - y;
-      debug( "XCB **** draw_area xy=%u,%u wh=%u,%u\n",x, y, width, height);
+      debug( "XCB **** draw_area xy=%u,%u wh=%u,%u",x, y, width, height);
       cr.save();
       cr.rectangle (x, y, width, height);
       cr.clip ();
@@ -642,7 +642,7 @@ namespace Ltk{
       this.damage_region.y = uint.min(this.damage_region.y, y);
       this.damage_region.width = uint.max(this.damage_region.width, x+width);//x2
       this.damage_region.height = uint.max(this.damage_region.height, y+height);//y2
-      debug( "XCB **** damage xy=%u,%u wh=%u,%u\n",
+      debug( "XCB **** damage xy=%u,%u wh=%u,%u",
       this.damage_region.x,
       this.damage_region.y,
       this.damage_region.width,
@@ -683,7 +683,7 @@ namespace Ltk{
     public signal bool on_key_release(uint keycode, uint state);
     [Signal (run="last",detailed=false)]
     public virtual signal bool on_quit(){
-      debug("Xcbwindow.on_quit\n");
+      debug("Xcbwindow.on_quit");
       //https://mail.gnome.org/archives/vala-list/2011-October/msg00103.html
       return true;//default is to quit if no other handlers connected with connect_after;
     }
@@ -709,7 +709,7 @@ namespace Ltk{
           }
 
     private static void print_handler(string? domain, LogLevelFlags flags, string message) {
-        GLib.stderr.printf("domain:%s message:%s\n",domain,message);
+        GLib.stderr.printf("domain:%s message:%s",domain,message);
         GLib.stderr.flush();
           }
 
@@ -792,7 +792,7 @@ namespace Ltk{
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
       Global.xcb_source = channel.add_watch(IOCondition.IN,  (source, condition) => {
           if (condition == IOCondition.HUP) {
-          debug ("The connection has been broken.\n");
+          debug ("The connection has been broken.");
           Global.loop.quit();
           return false;
           }
@@ -813,7 +813,7 @@ namespace Ltk{
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
 
           while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
-//~             debug( "!!!!!!!!!!!event=%u\n",(uint)event.response_type);
+//~             debug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
@@ -864,15 +864,15 @@ namespace Ltk{
 
     public static void run(){
       Global.loop.run ();
-      debug ("atoms.remove_all\n");
+      debug ("atoms.remove_all");
       Global.atoms.foreach((k,v)=>{ free((void*)v); });
       Global.atoms.remove_all();
-//~       debug ("windows.remove_all\n");
+//~       debug ("windows.remove_all");
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
 //~       Global.windows.remove_all();
       //~     surface.finish();
 
-//~     debug ("Global.C.unref\n");
+//~     debug ("Global.C.unref");
 //~     GLib.Source.remove(Global.xcb_source);
 
 //~     surface.destroy();
@@ -890,7 +890,7 @@ namespace Ltk{
       get{ return  this._min_width;}
       set{
         if(value != this._min_width){
-          debug("Widget min_width_old=%u new=%u\n",(uint)this._min_width,value);
+          debug("Widget min_width_old=%u new=%u",(uint)this._min_width,value);
           this._min_width = value;
           if(this.A.width < this._min_width)
             this.damaged = true;
@@ -981,7 +981,7 @@ namespace Ltk{
         if(_damaged){
           this.send_damage();
         }
-        debug("--- Widget damaged=%u width=%u height=%u childs=%u\n",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
+        debug("--- Widget damaged=%u width=%u height=%u childs=%u",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
         }
       default = true;
     }
@@ -1003,7 +1003,7 @@ namespace Ltk{
 
     ~Widget(){
       this.childs.remove_all();
-      debug("~Widget\n");
+      debug("~Widget");
     }
 
     public virtual bool draw(Cairo.Context cr){
@@ -1036,9 +1036,9 @@ namespace Ltk{
       }
     }
     public void send_damage(Widget w = this,uint sx = this.A.x,uint sy = this.A.y,uint swidth = this.A.width,uint sheight = this.A.height){
-//~        debug("Widget send_damage\n");
+//~        debug("Widget send_damage");
        var win = get_top_window();
-//~        debug("Widget send_damage %u\n",(uint)win);
+//~        debug("Widget send_damage %u",(uint)win);
        if(win != null){
           win.damage(w,sx,sy,swidth,sheight);
         }
@@ -1051,7 +1051,7 @@ namespace Ltk{
     [Signal (run="first")]
     public virtual signal void on_mouse_move(uint x, uint y){}
     [Signal (run="first")]
-    public virtual signal void on_mouse_enter(uint x, uint y){ debug( "Widget on_mouse_enter\n"); this.engine.state |= StyleState.hover; }
+    public virtual signal void on_mouse_enter(uint x, uint y){ debug( "Widget on_mouse_enter"); this.engine.state |= StyleState.hover; }
     [Signal (run="first")]
     public virtual signal void on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; }
     [Signal (run="first")]
@@ -1088,7 +1088,7 @@ namespace Ltk{
           src.A.height = src.min_height;
         }
 
-        debug("diff_width=%d diff_height=%d\n",diff_width,diff_height);
+        debug("diff_width=%d diff_height=%d",diff_width,diff_height);
 
         if(diff_height != 0 || diff_width != 0){
             this.update_childs_sizes();
@@ -1122,7 +1122,7 @@ namespace Ltk{
     }//update_childs_sizes
 
     public void update_childs_position(){
-      debug("@@@ update_childs_position xy=%u,%u count=%u\n",this.A.x,this.A.y, this.childs.count);
+      debug("@@@ update_childs_position xy=%u,%u count=%u",this.A.x,this.A.y, this.childs.count);
 
       //calculate position
       uint _x = this.A.x, _y = this.A.y, _w = 0, _h = 0;
@@ -1191,13 +1191,13 @@ namespace Ltk{
           _h = w.get_prefered_height();
           height_min = uint.max(height_min, _h);
           height_max = (this.place_policy == SOptions.place_vertical ? height_max + _h : height_min);
-          debug( "get_height_for_width1 min=%u max=%u %s\n",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+          debug( "get_height_for_width1 min=%u max=%u %s",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_height_serial = this.size_changed_serial;
       }else{
         height_min = this.min_height;
         height_max = height_min;//uint.max(this.A.height,height_min);
-        debug( "get_height_for_width2 min=%u max=%u \n",height_min,height_max );
+        debug( "get_height_for_width2 min=%u max=%u ",height_min,height_max );
       }
     }//get_height_for_width
 
@@ -1208,18 +1208,18 @@ namespace Ltk{
           _w = w.get_prefered_width();
           width_min = uint.max( width_min, _w );
           width_max = (this.place_policy == SOptions.place_horizontal ? width_max + _w : width_min);
-          debug( "get_width_for_height1 min=%u max=%u %s\n",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+          debug( "get_width_for_height1 min=%u max=%u %s",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_width_serial = this.size_changed_serial;
       }else{
         width_min = this.min_width;
         width_max = width_min;//uint.max(this.A.width,width_min);
       }
-      debug( "get_width_for_height2 min=%u max=%u\n",width_min,width_max);
+      debug( "get_width_for_height2 min=%u max=%u",width_min,width_max);
     }//get_width_for_height
 
     public virtual void calculate_size(ref uint calc_width,ref uint calc_height, Widget calc_initiator){
-      debug( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
+      debug( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
 
       if(this._calculating_size)
         return;
@@ -1232,16 +1232,16 @@ namespace Ltk{
          this.A.width >= this.min_width &&
          this.A.height >= this.min_height ){
             this._calculating_size=false;
-            debug( "container quick end. calculate_size w=%u h=%u loop=%d childs=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
+            debug( "container quick end. calculate_size w=%u h=%u loop=%d childs=%u", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
             return;
       }
       this._calculating_size=true;
 
       this.size_update_childs = this.size_changed_serial;
 
-        debug( "this.fill_mask=%d\n",this.fill_mask );
-        debug( "calc_width=%u wmax=%u\n",calc_width , this.min_width );
-        debug( "calc_height=%u hmax=%u\n",calc_height , this.min_height );
+        debug( "this.fill_mask=%d",this.fill_mask );
+        debug( "calc_width=%u wmax=%u",calc_width , this.min_width );
+        debug( "calc_height=%u hmax=%u",calc_height , this.min_height );
 
         //just to be shure
         if(calc_width < this.min_width)  { calc_width  = this.min_width; }
@@ -1250,18 +1250,18 @@ namespace Ltk{
           if( calc_width != this.A.width || calc_height != this.A.height ){
             this.damaged=true;
           }
-          debug("damaged=%u calc=%u,%u A=%u,%u\n",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
+          debug("damaged=%u calc=%u,%u A=%u,%u",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
 
           this.A.width = calc_width;//apply new allocation
           this.A.height = calc_height;
 
         if(this.place_policy == Ltk.SOptions.place_horizontal){
-          debug("SOptions.place_horizontal min=%u,%u A=%u,%u\n",this.min_width,this.min_height,this.A.width,this.A.height);
+          debug("SOptions.place_horizontal min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
 
           uint extra_width_delta = this.A.width;
 
-          debug("childs.length=%u \n",this.childs.count);
+          debug("childs.length=%u ",this.childs.count);
 
           if(extra_width_delta > this.min_width){
             extra_width_delta -= this.childs.fixed_width;
@@ -1270,7 +1270,7 @@ namespace Ltk{
             extra_width_delta = 0;
           }
 
-          debug("w=%u extra_width_delta=%u\n",this.A.width, extra_width_delta);
+          debug("w=%u extra_width_delta=%u",this.A.width, extra_width_delta);
 
           //_variable_width is sorted,first bigger then smaller
           foreach(var w in this.childs.variable_width()){
@@ -1304,7 +1304,7 @@ namespace Ltk{
             }else{
               new_height = w.min_height;
             }
-            debug("A w=%u h=%u\n",new_width,new_height);
+            debug("A w=%u h=%u",new_width,new_height);
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
             }
@@ -1322,11 +1322,11 @@ namespace Ltk{
 
           }//foreach childs
         }else{//SOptions.place_vertical
-          debug("SOptions.place_vertical min=%u,%u A=%u,%u\n",this.min_width,this.min_height,this.A.width,this.A.height);
+          debug("SOptions.place_vertical min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
           uint extra_height_delta = this.A.height;
 
-          debug("childs.length=%u \n",this.childs.count);
+          debug("childs.length=%u ",this.childs.count);
 
           if(extra_height_delta > this.min_height){
             extra_height_delta -= this.childs.fixed_height;
@@ -1335,7 +1335,7 @@ namespace Ltk{
             extra_height_delta = 0;
           }
 
-          debug("h=%u extra_height_delta=%u\n",this.A.height, extra_height_delta);
+          debug("h=%u extra_height_delta=%u",this.A.height, extra_height_delta);
 
 
           //_variable_height is sorted,first bigger then smaller
@@ -1372,7 +1372,7 @@ namespace Ltk{
               new_width = w.get_prefered_width();
             }
 
-            debug("A w=%u h=%u\n",w.A.width,w.A.height);
+            debug("A w=%u h=%u",w.A.width,w.A.height);
 
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
@@ -1389,13 +1389,13 @@ namespace Ltk{
             w.A.options |= w.fill_mask;
           }//foreach childs
         }//SOptions.place_vertical
-      debug( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u\n", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
+      debug( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
       this._calculating_size=false;
     }//calculate_size
 
     public override bool draw(Cairo.Context cr){
         var _ret = base.draw(cr);//widget
-        debug( "container x,y=%u,%u w,h=%u,%u childs=%u\n",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
+        debug( "container x,y=%u,%u w,h=%u,%u childs=%u",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
 
         double dx=0,dy=0;
 
@@ -1420,7 +1420,7 @@ namespace Ltk{
               dx=w.A.x;
               dy=w.A.y;
               cr.device_to_user(ref dx,ref dy);
-//~               debug( "+++ childs draw %d [%f,%f]\n",(int)w.A.width,dx,dy);
+//~               debug( "+++ childs draw %d [%f,%f]",(int)w.A.width,dx,dy);
               cr.translate (dx, dy);
               cr.rectangle (0, 0, w.A.width , w.A.height );
               cr.clip ();
@@ -1458,19 +1458,19 @@ namespace Ltk{
 
 //~       this.window.on_quit.connect(()=>{
 //~         GLib.Signal.stop_emission_by_name(this.window,"on-quit");
-//~         debug("Window window.on_quit\n");
+//~         debug("Window window.on_quit");
 //~         return false;
 //~         });
 //~       return base(null);
     }
 
     ~Window(){
-      debug("~Window\n");
+      debug("~Window");
     }
 
 
     public override bool draw(Cairo.Context cr){
-      debug( "window draw w=%u h=%u childs=%u damage=%u\n", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
+      debug( "window draw w=%u h=%u childs=%u damage=%u", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
       var was_damaged = this.damaged;
       var _ret = base.draw(cr);//Container
       if(was_damaged){
@@ -1495,7 +1495,7 @@ namespace Ltk{
           cr.stroke ();
         cr.restore();
       }
-//~       debug( "childs draw %d\n",(int)this.childs.length());
+//~       debug( "childs draw %d",(int)this.childs.length());
 //~       this.A.width = this.min_width;
 //~       this.A.height = this.min_height;
       return _ret;
@@ -1509,12 +1509,12 @@ namespace Ltk{
     }
 
     public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget calc_initiator){
-      debug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      debug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       this._calculating_size=true;
       uint oldw = this.A.width;
       uint oldh = this.A.height;
       base.calculate_size(ref calc_width,ref calc_height, calc_initiator);
-      debug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d\n", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      debug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       if(calc_width != oldw||
          calc_height != oldh){
            this.window.resize_and_remember(calc_width,calc_height);
@@ -1526,7 +1526,7 @@ namespace Ltk{
 
 
     public void size_request(uint new_width, uint new_height){
-      debug( "window size_request=%u,%u\n", new_width,new_height);
+      debug( "window size_request=%u,%u", new_width,new_height);
       if(this.A.width != new_width || this.A.height != new_height){
         this.window.resize(new_width,new_height);
       }
@@ -1543,7 +1543,7 @@ namespace Ltk{
 
     private weak Widget? find_mouse_child(Container cont, uint x, uint y){
       foreach(Widget w in cont.childs){
-//~           debug( "> %u < %u < %u ,  %u < %u < %u  \n",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
+//~           debug( "> %u < %u < %u ,  %u < %u < %u  ",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
 
         if( ( x > w.A.x  && x < (w.A.x + w.A.width) ) &&
             ( y > w.A.y  && y < (w.A.y + w.A.height) ) ){
@@ -1590,7 +1590,7 @@ namespace Ltk{
       if(this.previous_widget_under_mouse != null){
         Widget w = this.previous_widget_under_mouse;//take owner
         w.on_mouse_move(x,y);
-//~         debug( "window child under mouse is wh=%u,%u\n",
+//~         debug( "window child under mouse is wh=%u,%u",
 //~             this.previous_widget_under_mouse.A.width,
 //~             this.previous_widget_under_mouse.A.height);
       }
@@ -1637,7 +1637,7 @@ namespace Ltk{
       this.on_mouse_leave.connect(this.damage_on_mouse_event);
     }
     public override bool draw(Cairo.Context cr){
-      debug( "Button draw %s\n",this.get_class().get_name());
+      debug( "Button draw %s",this.get_class().get_name());
         this.engine.begin(this.A.width,this.A.height);
         if(this.damaged){
          this.engine.draw_box(cr,this.engine.height / 3.0);
