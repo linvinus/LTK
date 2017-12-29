@@ -29,6 +29,7 @@ int main (string[] argv) {
     window.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
     window.set_title("xcb_vala");
 //~     window.set_size(800,600);
+    window.load_font_with_size("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",14);
 //~     window.show();
 
     var container = new Ltk.Container();

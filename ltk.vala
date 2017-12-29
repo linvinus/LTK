@@ -500,6 +500,13 @@ namespace Ltk{
       }
     }
 
+    public void load_font_with_size(string fpatch,uint size){
+      var F = FontLoader.load(fpatch);
+      this.cr.set_font_face(F);
+      this.cr.set_font_size (size);
+    }
+
+
     public void on_configure(Xcb.ConfigureNotifyEvent e){
 
   //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
@@ -709,7 +716,11 @@ namespace Ltk{
           }
 
     private static void print_handler(string? domain, LogLevelFlags flags, string message) {
-        GLib.stderr.printf("domain:%s message:%s",domain,message);
+        if(domain!= null){
+          GLib.stderr.printf("%s %s\n",domain,message);
+        }else{
+          GLib.stderr.printf("%s\n",message);
+        }
         GLib.stderr.flush();
           }
 
@@ -871,6 +882,7 @@ namespace Ltk{
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
 //~       Global.windows.remove_all();
       //~     surface.finish();
+    FontLoader.destroy();
 
 //~     debug ("Global.C.unref");
 //~     GLib.Source.remove(Global.xcb_source);
@@ -1051,7 +1063,7 @@ namespace Ltk{
     [Signal (run="first")]
     public virtual signal void on_mouse_move(uint x, uint y){}
     [Signal (run="first")]
-    public virtual signal void on_mouse_enter(uint x, uint y){ debug( "Widget on_mouse_enter"); this.engine.state |= StyleState.hover; }
+    public virtual signal void on_mouse_enter(uint x, uint y){ this.engine.state |= StyleState.hover; }
     [Signal (run="first")]
     public virtual signal void on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; }
     [Signal (run="first")]
@@ -1471,33 +1483,7 @@ namespace Ltk{
 
     public override bool draw(Cairo.Context cr){
       debug( "window draw w=%u h=%u childs=%u damage=%u", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
-      var was_damaged = this.damaged;
       var _ret = base.draw(cr);//Container
-      if(was_damaged){
-        cr.save();
-          /*cr.set_source_rgb(0, 1, 0);
-          cr.paint();
-
-          cr.set_source_rgb(1, 0, 0);
-          cr.move_to(0, 0);
-          cr.line_to(this.A.width, 0);
-          cr.line_to(this.A.width, this.A.height);
-          cr.close_path();
-          cr.fill();
-
-          cr.set_source_rgb(0, 0, 1);
-          cr.set_line_width(20);
-          cr.move_to(0, this.A.height);
-          cr.line_to(this.A.width, 0);
-          cr.stroke();*/
-          cr.move_to( 2, this.A.height-10);
-          cr.show_text( this.text);
-          cr.stroke ();
-        cr.restore();
-      }
-//~       debug( "childs draw %d",(int)this.childs.length());
-//~       this.A.width = this.min_width;
-//~       this.A.height = this.min_height;
       return _ret;
     }//draw
 
@@ -1535,7 +1521,10 @@ namespace Ltk{
     public void set_title(string title){
       this.window.set_title(title);
     }
-
+    public void load_font_with_size(string fpatch,uint size){
+      this.window.load_font_with_size(fpatch, size);
+    }
+    
     public override void show(){
       base.show();
       this.window.show();
@@ -1640,7 +1629,7 @@ namespace Ltk{
       debug( "Button draw %s",this.get_class().get_name());
         this.engine.begin(this.A.width,this.A.height);
         if(this.damaged){
-         this.engine.draw_box(cr,this.engine.height / 3.0);
+         this.engine.draw_box(cr,this.engine.height / 10.0);
          this.engine.translate2box(cr);//main part where we can draw
 
          cr.translate (0,(double)(this.A.height/2));
