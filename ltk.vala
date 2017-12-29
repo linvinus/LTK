@@ -1475,6 +1475,7 @@ namespace Ltk{
     private string? title = null;
     string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
     private weak Widget? previous_widget_under_mouse = null;
+    private weak Widget? focused_widget = null;
 
     public Window(){
 
@@ -1492,6 +1493,19 @@ namespace Ltk{
       this.window.on_mouse_move.connect(this._on_mouse_move);
       this.window.on_mouse_enter.connect(this._on_mouse_move);
       this.window.on_mouse_leave.connect(this._on_mouse_move);
+
+      this.window.on_key_press.connect((keycode, state) => {this.on_key_press(keycode, state);});
+      this.window.on_key_press.connect((keycode, state) => {
+        if(focused_widget!=null){
+          focused_widget.on_key_press(keycode, state);
+          }
+      });
+      this.window.on_key_release.connect((keycode, state) => {this.on_key_press(keycode, state);});
+      this.window.on_key_release.connect((keycode, state) => {
+        if(focused_widget!=null){
+          focused_widget.on_key_release(keycode, state);
+          }
+      });
 
 //~       this.damage.connect((widget,x,y,w,h)=>{});
 
