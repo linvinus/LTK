@@ -714,8 +714,8 @@ namespace Ltk{
           }
 
 
-    public  static void Init(){
-        if(1==0) {
+    public  static void Init(bool debug_enable){
+        if(debug_enable) {
           Log.set_handler(null,
             LogLevelFlags.LEVEL_MASK &
             (LogLevelFlags.LEVEL_DEBUG |
@@ -1048,11 +1048,16 @@ namespace Ltk{
 //~     [Signal (action=true, detailed=true, run=true, no_recurse=true, no_hooks=true)]
 //~     [Signal (run="first")]
 
-    public virtual bool on_mouse_move(uint x, uint y){return true;}
-    public virtual bool on_mouse_enter(uint x, uint y){ this.engine.state |= StyleState.hover; /*this.damaged = true;*/ return true;}
-    public virtual bool on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; /*this.damaged = true;*/ return true;}
-    public virtual bool on_key_press(uint keycode, uint state){return true;}
-    public virtual bool on_key_release(uint keycode, uint state){return true;}
+    [Signal (run="first")]
+    public virtual signal void on_mouse_move(uint x, uint y){}
+    [Signal (run="first")]
+    public virtual signal void on_mouse_enter(uint x, uint y){ debug( "Widget on_mouse_enter\n"); this.engine.state |= StyleState.hover; }
+    [Signal (run="first")]
+    public virtual signal void on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; }
+    [Signal (run="first")]
+    public virtual signal void on_key_press(uint keycode, uint state){}
+    [Signal (run="first")]
+    public virtual signal void on_key_release(uint keycode, uint state){}
   }//class Widget
   /********************************************************************/
   public class Container: Widget{
@@ -1628,6 +1633,8 @@ namespace Ltk{
       engine.padding.bottom = 0;
       engine.padding.left = 0;
       engine.padding.right = 0;
+      this.on_mouse_enter.connect(this.damage_on_mouse_event);
+      this.on_mouse_leave.connect(this.damage_on_mouse_event);
     }
     public override bool draw(Cairo.Context cr){
       debug( "Button draw %s\n",this.get_class().get_name());
@@ -1652,6 +1659,9 @@ namespace Ltk{
 //~       cr.paint();
       return true;//continue
     }//draw
+    private void damage_on_mouse_event(uint x,uint y){
+      this.damaged = true;//redraw button with new state
+    }
   }
 
   [SimpleType]

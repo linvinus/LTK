@@ -22,7 +22,7 @@ using Posix;
 
 int main (string[] argv) {
 
-    Ltk.Global.Init();
+    Ltk.Global.Init(true);
 
     var window = new Ltk.Window();
     window.place_policy = Ltk.SOptions.place_horizontal;
@@ -69,7 +69,7 @@ int main (string[] argv) {
       tick = !tick;
       return GLib.Source.CONTINUE;
       };
-    GLib.Timeout.add(500,ontime);
+    GLib.Timeout.add(500000,ontime);
 
     var container2 = new Ltk.Container();
     container2.place_policy = Ltk.SOptions.place_horizontal;
