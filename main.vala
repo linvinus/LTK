@@ -45,9 +45,9 @@ int main (string[] argv) {
     container.add(button2);
 //~     button.height=200;
 //~     button.width=200;
-//~     button = new Ltk.Button("3Vertical :)))");
-//~     button.fill_mask |= Ltk.SOptions.fill_width | Ltk.ContainerFillPolicy.fill_height;
-//~     container.add(button);
+    button = new Ltk.Button("3Vertical :)))");
+    button.fill_mask |= Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
+    container.add(button);
     bool tick = false;
     GLib.SourceFunc ontime = ()=>{
       debug("GLib.Timeout\n");

@@ -318,10 +318,9 @@ namespace Ltk{
     private uint draw_callback_timer;
 
     private void create_pixmap(uint16 width, uint16 height){
-      if(this.pixmap != 0){
-        Global.C.free_gc(this.pixmap_gc);
-        Global.C.free_pixmap(this.pixmap);
-      }
+      uint32 prev_gc = this.pixmap_gc;
+      uint32 prev_pixmap = this.pixmap;
+
       this.pixmap = Global.C.generate_id();
       this.pixmap_gc = Global.C.generate_id();
 
@@ -330,6 +329,21 @@ namespace Ltk{
       values[0] = Global.screen.white_pixel;
       values[1] = Global.screen.white_pixel;
       Global.C.create_gc(this.pixmap_gc, this.pixmap, (Xcb.GC.BACKGROUND|Xcb.GC.FOREGROUND),values);
+
+      if(prev_pixmap != 0){
+        //copy previous window image, it will be shown until a new draw event
+        Global.C.copy_area(prev_pixmap,
+                           this.pixmap,
+                           this.pixmap_gc,
+                           (int16)0,
+                           (int16)0,
+                           (int16)0,
+                           (int16)0,
+                           (int16)width,
+                           (int16)height);
+        Global.C.free_gc(prev_gc);
+        Global.C.free_pixmap(prev_pixmap);
+      }
 
       if(this.window != 0 ){
         values[0] =  this.pixmap ;
@@ -475,6 +489,7 @@ namespace Ltk{
       if(this.state == WindowState.visible){
         this.min_width = width;
         this.min_height = height;
+        this.cancel_draw();//new draw event will be on configure event
       }
     }
 
@@ -549,7 +564,7 @@ namespace Ltk{
 //~         this.surface.set_drawable(this.pixmap,(int)this.min_width,(int)this.min_height);
         cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.min_width,(int)this.min_height);
   //~     debug( "on_map x,y=%d,%d w,h=%d,%d",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
-
+      this.queue_draw();
     }
 
     public bool process_event(Xcb.GenericEvent event){
@@ -674,11 +689,16 @@ namespace Ltk{
       }
     }
 
-    public void quit(){
-      Global.loop.quit ();
+    public void cancel_draw(){
       if(this.draw_callback_timer != 0){
         GLib.Source.remove(draw_callback_timer);
+        draw_callback_timer=0;
       }
+    }
+
+    public void quit(){
+      Global.loop.quit ();
+      this.cancel_draw();
     }
 
     public signal void size_changed(uint width,uint height);//for parents
@@ -1251,9 +1271,9 @@ namespace Ltk{
 
       this.size_update_childs = this.size_changed_serial;
 
-        debug( "this.fill_mask=%d",this.fill_mask );
-        debug( "calc_width=%u wmax=%u",calc_width , this.min_width );
-        debug( "calc_height=%u hmax=%u",calc_height , this.min_height );
+        debug( "container this.fill_mask=%d",this.fill_mask );
+        debug( "container calc_width=%u wmax=%u",calc_width , this.min_width );
+        debug( "container calc_height=%u hmax=%u",calc_height , this.min_height );
 
         //just to be shure
         if(calc_width < this.min_width)  { calc_width  = this.min_width; }
@@ -1262,18 +1282,18 @@ namespace Ltk{
           if( calc_width != this.A.width || calc_height != this.A.height ){
             this.damaged=true;
           }
-          debug("damaged=%u calc=%u,%u A=%u,%u",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
+          debug("container damaged=%u calc=%u,%u A=%u,%u",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
 
           this.A.width = calc_width;//apply new allocation
           this.A.height = calc_height;
 
         if(this.place_policy == Ltk.SOptions.place_horizontal){
-          debug("SOptions.place_horizontal min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
+          debug("container SOptions.place_horizontal min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
 
           uint extra_width_delta = this.A.width;
 
-          debug("childs.length=%u ",this.childs.count);
+          debug("container childs.length=%u ",this.childs.count);
 
           if(extra_width_delta > this.min_width){
             extra_width_delta -= this.childs.fixed_width;
@@ -1282,7 +1302,7 @@ namespace Ltk{
             extra_width_delta = 0;
           }
 
-          debug("w=%u extra_width_delta=%u",this.A.width, extra_width_delta);
+          debug("container w=%u extra_width_delta=%u",this.A.width, extra_width_delta);
 
           //_variable_width is sorted,first bigger then smaller
           foreach(var w in this.childs.variable_width()){
@@ -1312,11 +1332,11 @@ namespace Ltk{
                 new_width = w.min_width;
             }
             if((w.fill_mask & Ltk.SOptions.fill_vertical) > 0){
-              new_height = this.min_height;
+              new_height = this.A.height;
             }else{
               new_height = w.min_height;
             }
-            debug("A w=%u h=%u",new_width,new_height);
+            debug("container A w=%u h=%u",new_width,new_height);
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
             }
@@ -1334,11 +1354,11 @@ namespace Ltk{
 
           }//foreach childs
         }else{//SOptions.place_vertical
-          debug("SOptions.place_vertical min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
+          debug("container SOptions.place_vertical min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
           uint extra_height_delta = this.A.height;
 
-          debug("childs.length=%u ",this.childs.count);
+          debug("container childs.length=%u ",this.childs.count);
 
           if(extra_height_delta > this.min_height){
             extra_height_delta -= this.childs.fixed_height;
@@ -1347,7 +1367,7 @@ namespace Ltk{
             extra_height_delta = 0;
           }
 
-          debug("h=%u extra_height_delta=%u",this.A.height, extra_height_delta);
+          debug("container h=%u extra_height_delta=%u",this.A.height, extra_height_delta);
 
 
           //_variable_height is sorted,first bigger then smaller
@@ -1379,12 +1399,12 @@ namespace Ltk{
             }
 
             if((w.fill_mask & Ltk.SOptions.fill_horizontal) > 0){
-              new_width = this.min_width;
+              new_width = this.A.width;
             }else{
               new_width = w.get_prefered_width();
             }
 
-            debug("A w=%u h=%u",w.A.width,w.A.height);
+            debug("container A w=%u h=%u",w.A.width,w.A.height);
 
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
@@ -1494,11 +1514,20 @@ namespace Ltk{
 //~         this.damaged=true;
     }
 
+    public void damage_all(Container P){
+      foreach(var w in P.childs){
+        if(w is Container){
+          this.damage_all((Container) w);
+        }else
+          w.damaged=true;
+      }
+    }
+
     public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget calc_initiator){
       debug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       this._calculating_size=true;
-      uint oldw = this.A.width;
-      uint oldh = this.A.height;
+      uint oldw = uint32.min(this.A.width,calc_width);
+      uint oldh = uint32.min(this.A.height,calc_height);
       base.calculate_size(ref calc_width,ref calc_height, calc_initiator);
       debug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       if(calc_width != oldw||
@@ -1506,6 +1535,7 @@ namespace Ltk{
            this.window.resize_and_remember(calc_width,calc_height);
            this.A.width = calc_width;
            this.A.height = calc_height;
+           this.damage_all(this);//redraw whole window
       }
       this._calculating_size=false;
     }
@@ -1734,6 +1764,12 @@ namespace Ltk{
         cr.set_source_rgb(map.bg.r, map.bg.g, map.bg.b);
         cr.rectangle (0, 0, width, height);
         cr.fill_preserve ();
+          cr.set_source_rgb(map.br.r, map.br.g, map.br.b);
+          cr.set_line_width(2);
+          cr.set_source_rgb(0, 0, 0);
+          cr.rectangle (0, 0, width, height);
+//~           cr.stroke ();
+//~           cr.restore();
         cr.stroke ();
         cr.restore();
       }else{
