@@ -846,6 +846,7 @@ namespace Ltk{
               break;
              }
            Global.C.flush();
+           free(event);
           }
           return _return;
         });
