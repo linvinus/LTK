@@ -371,6 +371,8 @@ namespace Ltk{
                   Xcb.EventMask.BUTTON_PRESS|
                   Xcb.EventMask.BUTTON_RELEASE|
                   Xcb.EventMask.POINTER_MOTION|
+                  Xcb.EventMask.LEAVE_WINDOW|
+                  Xcb.EventMask.ENTER_WINDOW|
                   Xcb.EventMask.KEY_PRESS|
                   Xcb.EventMask.KEY_RELEASE;
 
@@ -703,11 +705,11 @@ namespace Ltk{
 
     public signal void size_changed(uint width,uint height);//for parents
     public signal bool draw(Cairo.Context cr);
-    public signal bool on_mouse_move(uint x, uint y);
-    public signal bool on_mouse_enter(uint x, uint y);
-    public signal bool on_mouse_leave(uint x, uint y);
-    public signal bool on_key_press(uint keycode, uint state);
-    public signal bool on_key_release(uint keycode, uint state);
+    public signal void on_mouse_move(uint x, uint y);
+    public signal void on_mouse_enter(uint x, uint y);
+    public signal void on_mouse_leave(uint x, uint y);
+    public signal void on_key_press(uint keycode, uint state);
+    public signal void on_key_release(uint keycode, uint state);
     [Signal (run="last",detailed=false)]
     public virtual signal bool on_quit(){
       debug("Xcbwindow.on_quit");
@@ -1482,7 +1484,14 @@ namespace Ltk{
       this.window = new XcbWindow();
       this.window.size_changed.connect(on_xcb_window_size_change);
       this.window.draw.connect(this.draw);
+      //someone can subscribe to this signals
+      this.window.on_mouse_move.connect((x,y)=>{this.on_mouse_move(x,y);});
+      this.window.on_mouse_enter.connect((x,y)=>{this.on_mouse_enter(x,y);});
+      this.window.on_mouse_leave.connect((x,y)=>{this.on_mouse_leave(x,y);});
+      //generate on_mouse_enter,on_mouse_leave events for childs
       this.window.on_mouse_move.connect(this._on_mouse_move);
+      this.window.on_mouse_enter.connect(this._on_mouse_move);
+      this.window.on_mouse_leave.connect(this._on_mouse_move);
 
 //~       this.damage.connect((widget,x,y,w,h)=>{});
 
@@ -1575,7 +1584,8 @@ namespace Ltk{
         }
       }
       return null;
-    }
+    }//find_mouse_child
+
     private weak Widget? find_mouse_child_up(Container cont, uint x, uint y){
       Widget? w = this.find_mouse_child(cont,x,y);
       if(w == null && cont.parent != null){
@@ -1583,15 +1593,16 @@ namespace Ltk{
       }
       weak Widget tmp = w;
       return tmp;
-    }
-    private bool _on_mouse_move(uint x, uint y){
-//~       text="on_mouse_move=%u,%u".printf(x,y);
+    }//find_mouse_child_up
+
+    private void _on_mouse_move(uint x, uint y){
+//~       debug("window on_mouse_move=%u,%u",x,y);
       if(this.previous_widget_under_mouse == null){
         this.previous_widget_under_mouse = this.find_mouse_child(this,x,y);
          if(this.previous_widget_under_mouse != null){
            Widget w = this.previous_widget_under_mouse;//take owner
            w.on_mouse_enter(x,y);
-           return true;
+           return;
          }
       }else{
         Widget w = this.previous_widget_under_mouse;
@@ -1602,7 +1613,7 @@ namespace Ltk{
                  if(this.previous_widget_under_mouse != null){
                    w = this.previous_widget_under_mouse;//take owner
                    w.on_mouse_enter(x,y);
-                   return true;
+                   return;
                  }
         }
       }
@@ -1613,9 +1624,8 @@ namespace Ltk{
 //~             this.previous_widget_under_mouse.A.width,
 //~             this.previous_widget_under_mouse.A.height);
       }
-//~       this.damage(0, A.height-20, this.A.width, 20);
-      return true;
-    }
+    }//_on_mouse_move
+
     public virtual signal void damage(Widget? src,uint x,uint y,uint width,uint height){
       this.window.damage(x,y,width,height);
     }
