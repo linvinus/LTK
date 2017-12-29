@@ -628,6 +628,14 @@ namespace Ltk{
                Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
                this.on_key_release((uint) e.detail, (uint) e.state);
             break;
+            case Xcb.BUTTON_PRESS:
+               Xcb.ButtonPressEvent e = (Xcb.ButtonPressEvent)event;
+               this.on_button_press((uint)e.detail, (uint) e.event_x, (uint) e.event_y);
+            break;
+            case Xcb.BUTTON_RELEASE:
+               Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
+               this.on_button_release((uint)e.detail, (uint) e.event_x, (uint) e.event_y);
+            break;
           }//switch
   //~         free(event);
 //~           Global.C.flush();
@@ -708,6 +716,8 @@ namespace Ltk{
     public signal void on_mouse_move(uint x, uint y);
     public signal void on_mouse_enter(uint x, uint y);
     public signal void on_mouse_leave(uint x, uint y);
+    public signal void on_button_press(uint detail,uint x, uint y);
+    public signal void on_button_release(uint detail,uint x, uint y);
     public signal void on_key_press(uint keycode, uint state);
     public signal void on_key_release(uint keycode, uint state);
     [Signal (run="last",detailed=false)]
@@ -875,6 +885,14 @@ namespace Ltk{
               break;
               case Xcb.KEY_RELEASE:
                  Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
+                 _return = Global.windows.lookup(e.event).process_event(event);
+              break;
+              case Xcb.BUTTON_PRESS:
+                 Xcb.ButtonPressEvent e = (Xcb.ButtonPressEvent)event;
+                 _return = Global.windows.lookup(e.event).process_event(event);
+              break;
+              case Xcb.BUTTON_RELEASE:
+                 Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
                  _return = Global.windows.lookup(e.event).process_event(event);
               break;
              }
@@ -1078,6 +1096,17 @@ namespace Ltk{
         }
 //~       GLib.Signal.emit_by_name(((Widget)this),"damage2",null,this.A.x,this.A.y,this.A.width,this.A.height);
     }
+
+    //set input focus
+    public virtual bool set_focus(bool focus){
+      return false;
+    }//set_focus
+    
+    //is widget focused?
+    public virtual bool get_focus(){
+      return false;
+    }//get_focus
+    
     public signal void size_changed(Widget src,Allocation old);//for parents
 //~     [Signal (action=true, detailed=true, run=true, no_recurse=true, no_hooks=true)]
 //~     [Signal (run="first")]
@@ -1503,8 +1532,25 @@ namespace Ltk{
       this.window.on_key_release.connect((keycode, state) => {this.on_key_press(keycode, state);});
       this.window.on_key_release.connect((keycode, state) => {
         if(focused_widget!=null){
-          focused_widget.on_key_release(keycode, state);
+          this.focused_widget.on_key_release(keycode, state);
           }
+      });
+
+      this.window.on_button_press.connect((detail, x, y)=>{
+        debug("window on_button_press %u xy=%u,%u",detail, x, y);
+         Widget? w = this.find_mouse_child(this,x,y);
+         if(this.focused_widget != w){
+           if(this.focused_widget != null && this.focused_widget is Widget){
+             this.focused_widget.set_focus(false);
+             this.focused_widget = null;
+           }
+           if(w != null && w.set_focus(true)){
+             this.focused_widget = w;
+           }else{
+             this.focused_widget = null;
+           }
+           debug("window on_button_press widget=%p",this.focused_widget);
+        }
       });
 
 //~       this.damage.connect((widget,x,y,w,h)=>{});
@@ -1658,6 +1704,7 @@ namespace Ltk{
   public class Button: Widget{
     public string? label = null;
     private uint8 color=128;
+    private bool _focused = false;
     public Button(string? label = null){
       base();
       this.label = label;
@@ -1705,7 +1752,18 @@ namespace Ltk{
     private void damage_on_mouse_event(uint x,uint y){
       this.damaged = true;//redraw button with new state
     }
-  }
+    
+    //set input focus
+    public override bool set_focus(bool focus){
+      this._focused = focus;
+      return this._focused;
+    }//set_focus
+    
+    //is widget focused?
+    public override bool get_focus(){
+      return this._focused;
+    }//get_focus
+  }//Button
 
   [SimpleType]
   [CCode (has_type_id = false)]
