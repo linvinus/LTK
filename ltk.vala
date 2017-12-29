@@ -1696,11 +1696,12 @@ namespace Ltk{
     double left;
     double right;
   }
-
+  [Compact] 
+  [CCode (has_type_id = false)]
   public class ThemeEngine{
-    private string widget_path;
+    public string widget_path;
     public ColorMap map;
-    private GLib.HashTable<int,Cairo.Pattern> patterns;
+//~     public GLib.HashTable<int,Cairo.Pattern> patterns;
     public StyleState state;
     public Borders border;
     public Borders border_radius;
@@ -1711,14 +1712,14 @@ namespace Ltk{
 
     public ThemeEngine(string widget_path){
       this.widget_path = widget_path;
-      this.patterns = new GLib.HashTable<int,Cairo.Pattern> (int_hash, int_equal);
+//~       this.patterns = new GLib.HashTable<int,Cairo.Pattern> (int_hash, int_equal);
       this.map = {};
     }
-    public void generate_patterns(){
-      this.patterns.insert(StyleState.disabled,new Cairo.Pattern.rgb(map.bg.r, map.bg.g, map.bg.b));
-    }
-    public void set_color_map(ColorMap map){
-      this.map = map;
+//~     public void generate_patterns(){
+//~       this.patterns.insert(StyleState.disabled,new Cairo.Pattern.rgb(map.bg.r, map.bg.g, map.bg.b));
+//~     }
+    public void set_color_map(ColorMap* map){
+      this.map = *map;
     }
     public void begin(double width,double height){
       this.width = width;
