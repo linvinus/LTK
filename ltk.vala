@@ -716,7 +716,7 @@ namespace Ltk{
     public signal void on_mouse_move(uint x, uint y);
     public signal void on_mouse_enter(uint x, uint y);
     public signal void on_mouse_leave(uint x, uint y);
-    public signal void on_button_press(uint detail,uint x, uint y);
+    public signal void on_button_press(uint button,uint x, uint y);
     public signal void on_button_release(uint detail,uint x, uint y);
     public signal void on_key_press(uint keycode, uint state);
     public signal void on_key_release(uint keycode, uint state);
@@ -1039,6 +1039,7 @@ namespace Ltk{
     }
 
     public Ltk.ThemeEngine engine;
+    public WidgetState state;
 
     public Widget(Container? parent = null){
       GLib.Object();
@@ -1048,9 +1049,9 @@ namespace Ltk{
         this.parent = parent;
       this.engine = new ThemeEngine("");
 
-      this.engine.map.bg.r = this.engine.map.bg.g = this.engine.map.bg.b = 0.5;
-      this.engine.map.br.r = this.engine.map.br.g = this.engine.map.br.b = 0.3;
-
+      this.engine.map.bg[DrawStyle.normal].r = this.engine.map.bg[DrawStyle.normal].g = this.engine.map.bg[DrawStyle.normal].b = 0.5;
+      this.engine.map.br[DrawStyle.normal].r = this.engine.map.br[DrawStyle.normal].g = this.engine.map.br[DrawStyle.normal].b = 0.3;
+      this.engine.map.bg[DrawStyle.normal].r=0.5;
     }//create
 
     ~Widget(){
@@ -1059,7 +1060,7 @@ namespace Ltk{
     }
 
     public virtual bool draw(Cairo.Context cr){
-        this.engine.begin(this.A.width,this.A.height);
+        this.engine.begin(this.state,this.A.width,this.A.height);
         if(this.damaged){
           this.engine.draw_box(cr);
           this.engine.translate2box(cr);
@@ -1101,12 +1102,12 @@ namespace Ltk{
     public virtual bool set_focus(bool focus){
       return false;
     }//set_focus
-    
+
     //is widget focused?
     public virtual bool get_focus(){
       return false;
     }//get_focus
-    
+
     public signal void size_changed(Widget src,Allocation old);//for parents
 //~     [Signal (action=true, detailed=true, run=true, no_recurse=true, no_hooks=true)]
 //~     [Signal (run="first")]
@@ -1114,13 +1115,18 @@ namespace Ltk{
     [Signal (run="first")]
     public virtual signal void on_mouse_move(uint x, uint y){}
     [Signal (run="first")]
-    public virtual signal void on_mouse_enter(uint x, uint y){ this.engine.state |= StyleState.hover; }
+    public virtual signal void on_mouse_enter(uint x, uint y){ this.state |= WidgetState.hover; }
     [Signal (run="first")]
-    public virtual signal void on_mouse_leave(uint x, uint y){ this.engine.state &= ~StyleState.hover; }
+    public virtual signal void on_mouse_leave(uint x, uint y){ this.state &= ~WidgetState.hover; }
     [Signal (run="first")]
     public virtual signal void on_key_press(uint keycode, uint state){}
     [Signal (run="first")]
     public virtual signal void on_key_release(uint keycode, uint state){}
+    [Signal (run="first")]
+    public virtual signal void on_button_press(uint button,uint x, uint y){}
+    [Signal (run="first")]
+    public virtual signal void on_button_release(uint button,uint x, uint y){}
+
   }//class Widget
   /********************************************************************/
   public class Container: Widget{
@@ -1475,7 +1481,7 @@ namespace Ltk{
                     dy = _y;
                     cr.device_to_user(ref dx,ref dy);
                     cr.translate (dx, dy);
-                    this.engine.begin(_w,_h);//repaint container background under widget, recover background if widget become smaller
+                    this.engine.begin(this.state,_w,_h);//repaint container background under widget, recover background if widget become smaller
                     this.engine.draw_box(cr);
                     //this.send_damage(this,_x,_y,_w,_h); don't send damage from draw
               }
@@ -1505,6 +1511,7 @@ namespace Ltk{
     string text="HELLO :) Проверка ЁЙ Русский язык اللغة العربية English language اللغة العربية";
     private weak Widget? previous_widget_under_mouse = null;
     private weak Widget? focused_widget = null;
+    private weak Widget? button_press_widget[25];//man4/mousedrv.4. default value is 3. The maximum number is 24
 
     public Window(){
 
@@ -1523,34 +1530,41 @@ namespace Ltk{
       this.window.on_mouse_enter.connect(this._on_mouse_move);
       this.window.on_mouse_leave.connect(this._on_mouse_move);
 
-      this.window.on_key_press.connect((keycode, state) => {this.on_key_press(keycode, state);});
+      //firstly send to child, so child can cancel event
       this.window.on_key_press.connect((keycode, state) => {
         if(focused_widget!=null){
           focused_widget.on_key_press(keycode, state);
           }
       });
-      this.window.on_key_release.connect((keycode, state) => {this.on_key_press(keycode, state);});
+      this.window.on_key_press.connect((keycode, state) => {this.on_key_press(keycode, state);});
+
+      //firstly send to child, so child can cancel event
       this.window.on_key_release.connect((keycode, state) => {
         if(focused_widget!=null){
           this.focused_widget.on_key_release(keycode, state);
           }
       });
+      this.window.on_key_release.connect((keycode, state) => {this.on_key_press(keycode, state);});
 
-      this.window.on_button_press.connect((detail, x, y)=>{
-        debug("window on_button_press %u xy=%u,%u",detail, x, y);
-         Widget? w = this.find_mouse_child(this,x,y);
-         if(this.focused_widget != w){
-           if(this.focused_widget != null && this.focused_widget is Widget){
-             this.focused_widget.set_focus(false);
-             this.focused_widget = null;
-           }
-           if(w != null && w.set_focus(true)){
-             this.focused_widget = w;
-           }else{
-             this.focused_widget = null;
-           }
-           debug("window on_button_press widget=%p",this.focused_widget);
-        }
+      //firstly send to child, so child can cancel event
+      this.window.on_button_press.connect((button, x, y)=>{
+          Widget? w = this.find_mouse_child(this,x,y);
+          debug("window on_button_press2 %u xy=%u,%u w=%p",button, x, y,w);
+          if(w != null){
+            this.button_press_widget[button % 25] = w;//remember latest widget
+            w.on_button_press(button, x, y);
+          }
+        });
+      this.window.on_button_press.connect(_on_button_press);
+
+      //firstly send to child, so child can cancel event
+      this.window.on_button_release.connect((button, x, y)=>{
+          Widget? w = this.button_press_widget[button];//release event could be outside our window, so use remembered widget
+          debug("window on_button_release2 %u xy=%u,%u w=%p",button, x, y,w);
+          if(w != null){
+            w.on_button_release(button, x, y);
+            this.button_press_widget[button % 25] = null;//done
+          }
       });
 
 //~       this.damage.connect((widget,x,y,w,h)=>{});
@@ -1623,7 +1637,7 @@ namespace Ltk{
     public void load_font_with_size(string fpatch,uint size){
       this.window.load_font_with_size(fpatch, size);
     }
-    
+
     public override void show(){
       base.show();
       this.window.show();
@@ -1694,7 +1708,35 @@ namespace Ltk{
     public virtual bool on_mouse_leave(uint x, uint y){return true;}
     public virtual bool on_key_press(uint keycode, uint state){return true;}
     public virtual bool on_key_release(uint keycode, uint state){return true;}*/
+//~     public override signal void on_key_press(uint keycode, uint state){}
+//~     public override signal void on_key_release(uint keycode, uint state){}
+//~     public override void on_button_press(uint detail,uint x, uint y){
 
+    //set focus for child widget
+    private void _on_button_press(uint button,uint x, uint y){
+        debug("window on_button_press %u xy=%u,%u",button, x, y);
+          Widget? w = this.focused_widget;
+          if( w == null ||
+             (w != null &&
+              !( ( x > w.A.x  && x < (w.A.x + w.A.width) ) &&
+                 ( y > w.A.y  && y < (w.A.y + w.A.height) ) ) )
+          ){
+               w = this.find_mouse_child(this,x,y);
+          }
+
+         if(this.focused_widget != w){
+           if(this.focused_widget != null && this.focused_widget is Widget){
+             this.focused_widget.set_focus(false);
+             this.focused_widget = null;
+           }
+           if(w != null && w.set_focus(true)){
+             this.focused_widget = w;
+           }else{
+             this.focused_widget = null;
+           }
+           debug("window on_button_press widget=%p",this.focused_widget);
+        }
+    }//on_button_press
 
   }//class Window
 
@@ -1710,9 +1752,30 @@ namespace Ltk{
       this.label = label;
       this.min_width = 50;
       this.min_height = 50;
-      engine.map.bg.r = 0.0;
-      engine.map.bg.g = 0.5;
-      engine.map.bg.b = 0.0;
+      engine.map.bg[DrawStyle.normal].r = 0.0;
+      engine.map.bg[DrawStyle.normal].g = 0.5;
+      engine.map.bg[DrawStyle.normal].b = 0.0;
+
+      engine.map.bg[DrawStyle.focused].r = 0.0;
+      engine.map.bg[DrawStyle.focused].g = 0.9;
+      engine.map.bg[DrawStyle.focused].b = 0.0;
+      engine.map.br[DrawStyle.focused].r = 0.5;
+      engine.map.br[DrawStyle.focused].g = 0.0;
+      engine.map.br[DrawStyle.focused].b = 0.0;
+
+      engine.map.bg[DrawStyle.active].r = 0.5;
+      engine.map.bg[DrawStyle.active].g = 0.0;
+      engine.map.bg[DrawStyle.active].b = 0.9;
+      engine.map.br[DrawStyle.active].r = 0.5;
+      engine.map.br[DrawStyle.active].g = 0.0;
+      engine.map.br[DrawStyle.active].b = 0.0;
+
+      engine.map.bg[DrawStyle.hover].r = 0.0;
+      engine.map.bg[DrawStyle.hover].g = 0.5;
+      engine.map.bg[DrawStyle.hover].b = 0.0;
+      engine.map.br[DrawStyle.hover].r = 0.5;
+      engine.map.br[DrawStyle.hover].g = 0.0;
+      engine.map.br[DrawStyle.hover].b = 0.5;
 
       engine.border.left = 3;
       engine.border.right = 3;
@@ -1728,7 +1791,7 @@ namespace Ltk{
     }
     public override bool draw(Cairo.Context cr){
       debug( "Button draw %s",this.get_class().get_name());
-        this.engine.begin(this.A.width,this.A.height);
+        this.engine.begin(this.state,this.A.width,this.A.height);
         if(this.damaged){
          this.engine.draw_box(cr,this.engine.height / 10.0);
          this.engine.translate2box(cr);//main part where we can draw
@@ -1736,29 +1799,44 @@ namespace Ltk{
          cr.translate (0,(double)(this.A.height/2));
          if(this.label != null){
           cr.set_font_size (14.0);
-          cr.set_source_rgb(engine.map.text.r,
-                            engine.map.text.g,
-                            engine.map.text.b);
+          cr.set_source_rgb(engine.map.text[this.engine.style].r,
+                            engine.map.text[this.engine.style].g,
+                            engine.map.text[this.engine.style].b);
           cr.show_text(this.label);
           }
          cr.stroke ();
          this.damaged=false;
       }
       this.color+=50;
-      engine.map.bg.g = (double)this.color/255.0;
+//~       engine.map.bg[this.engine.style].g = (double)this.color/255.0;
 //~       cr.paint();
       return true;//continue
     }//draw
+    public override void on_button_press(uint button,uint x, uint y){
+      this.state |= WidgetState.activated;
+      this.damaged = true;//redraw button with new state
+    }
+    public override void on_button_release(uint button,uint x, uint y){
+      this.state &= ~WidgetState.activated;
+      this.damaged = true;//redraw button with new state
+    }
     private void damage_on_mouse_event(uint x,uint y){
       this.damaged = true;//redraw button with new state
     }
-    
+
     //set input focus
     public override bool set_focus(bool focus){
       this._focused = focus;
+      if(!focus && (this.state & WidgetState.focused) >0 ){
+        this.state  &= ~WidgetState.focused;
+        this.damaged = true;
+      }else if(focus && (this.state & WidgetState.focused) == 0 ){
+        this.state  |= WidgetState.focused;
+        this.damaged = true;
+      }
       return this._focused;
     }//set_focus
-    
+
     //is widget focused?
     public override bool get_focus(){
       return this._focused;
@@ -1773,21 +1851,32 @@ namespace Ltk{
     double b;
   }
 
-  [SimpleType]
-  [CCode (has_type_id = false)]
-  public struct ColorMap{
-    public ColorRGB bg;
-    public ColorRGB fg;
-    public ColorRGB br;
-    public ColorRGB text;
+//~   [SimpleType]
+[Compact]
+[CCode (has_type_id = false)]
+  public class ColorMap{
+    public ColorRGB bg[5];
+    public ColorRGB fg[5];
+    public ColorRGB br[5];
+    public ColorRGB text[5];
   }
 
   [SimpleType]
   [CCode (has_type_id = false)]
-  public enum StyleState{
-    disabled = 1<<1,
-    hover    = 1<<2,
-    focused  = 1<<3
+  public enum WidgetState{
+    disabled  = 1<<1,
+    hover     = 1<<2,
+    focused   = 1<<3,
+    activated = 1<<4  /*button pressed,selected menu or check box*/
+  }
+  [SimpleType]
+  [CCode (has_type_id = false)]
+  public enum DrawStyle{
+    normal   = 0,
+    active   = 1,
+    hover    = 2,
+    focused  = 3,
+    disabled = 4
   }
   [SimpleType]
   [CCode (has_type_id = false)]
@@ -1797,13 +1886,13 @@ namespace Ltk{
     double left;
     double right;
   }
-  [Compact] 
+  [Compact]
   [CCode (has_type_id = false)]
   public class ThemeEngine{
     public string widget_path;
     public ColorMap map;
 //~     public GLib.HashTable<int,Cairo.Pattern> patterns;
-    public StyleState state;
+    public DrawStyle style;
     public Borders border;
     public Borders border_radius;
     public Borders margin;
@@ -1814,18 +1903,31 @@ namespace Ltk{
     public ThemeEngine(string widget_path){
       this.widget_path = widget_path;
 //~       this.patterns = new GLib.HashTable<int,Cairo.Pattern> (int_hash, int_equal);
-      this.map = {};
+      this.map = new ColorMap();
     }
 //~     public void generate_patterns(){
-//~       this.patterns.insert(StyleState.disabled,new Cairo.Pattern.rgb(map.bg.r, map.bg.g, map.bg.b));
+//~       this.patterns.insert(WidgetState.disabled,new Cairo.Pattern.rgb(map.bg.r, map.bg.g, map.bg.b));
 //~     }
-    public void set_color_map(ColorMap* map){
-      this.map = *map;
-    }
-    public void begin(double width,double height){
+//~     public void set_color_map(ColorMap* map){
+//~       this.map = *map;
+//~     }
+    public void begin(WidgetState state,double width,double height){
       this.width = width;
       this.height = height;
-    }
+
+      if((state & WidgetState.disabled)>0){
+        this.style = DrawStyle.disabled;
+      }else if((state & WidgetState.activated)>0){
+        this.style = DrawStyle.active;
+      }else if((state & WidgetState.hover)>0){
+        this.style = DrawStyle.hover;
+      }else if((state & WidgetState.focused)>0){
+        this.style = DrawStyle.focused;
+      }else{
+        this.style = DrawStyle.normal;
+      }
+    }//begin
+
     public void translate2box(Cairo.Context cr){
        double x = border.left + padding.left;
        double y = border.top + padding.top;
@@ -1843,10 +1945,10 @@ namespace Ltk{
     public void draw_box(Cairo.Context cr,double corner_radius = 0){
       if(corner_radius == 0){
         cr.save();
-        cr.set_source_rgb(map.bg.r, map.bg.g, map.bg.b);
+        cr.set_source_rgb(map.bg[this.style].r, map.bg[this.style].g, map.bg[this.style].b);
         cr.rectangle (0, 0, width, height);
         cr.fill_preserve ();
-          cr.set_source_rgb(map.br.r, map.br.g, map.br.b);
+          cr.set_source_rgb(map.br[this.style].r, map.br[this.style].g, map.br[this.style].b);
           cr.set_line_width(2);
           cr.set_source_rgb(0, 0, 0);
           cr.rectangle (0, 0, width, height);
@@ -1871,9 +1973,9 @@ namespace Ltk{
         cr.arc ( x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
         cr.close_path ();
 
-        cr.set_source_rgb(map.bg.r, map.bg.g, map.bg.b);
+        cr.set_source_rgb(map.bg[this.style].r, map.bg[this.style].g, map.bg[this.style].b);
         cr.fill_preserve ();
-        cr.set_source_rgb ( map.br.r, map.br.g, map.br.b);
+        cr.set_source_rgb ( map.br[this.style].r, map.br[this.style].g, map.br[this.style].b);
         cr.set_line_width (border.left);
         cr.stroke ();
         cr.restore();
