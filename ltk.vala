@@ -73,6 +73,8 @@ namespace Ltk{
     public static const string _net_wm_pid = "_NET_WM_PID";
     public static const string _utf8_string = "UTF8_STRING";
     public static const string _string = "STRING";
+    public static const string _net_wm_state = "_NET_WM_STATE";
+    public static const string _net_wm_state_modal = "_NET_WM_STATE_MODAL";
   }
 
 //~   [SimpleType]
@@ -411,7 +413,15 @@ namespace Ltk{
       uint8  machine_name[1024];
       if(Posix.gethostname((char[])machine_name) == 0){
         debug("XcbWindow machine_name=%s length=%d",(string)machine_name,((string)machine_name).length);
-        Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
+//~         Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
+      Global.C.change_property_uint8 ( Xcb.PropMode.REPLACE,
+                           this.window,
+                           Xcb.Atom.WM_CLIENT_MACHINE,
+                           Xcb.Atom.STRING,
+    //~                        8,
+                           ((string)machine_name).length,
+                           (string)machine_name);
+
       }
 
       this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.min_width, (int)this.min_height);
@@ -598,8 +608,8 @@ namespace Ltk{
                   }else if(e.data.data32[0] == Global.deleteWindowAtom){
                       _continue = this.on_quit();//true to quit, false to continue
                       if(_continue){
-                        _continue = false;
                         this.quit();
+                        _continue = false;
                       }
                   }
                 }
@@ -707,8 +717,33 @@ namespace Ltk{
     }
 
     public void quit(){
-      Global.loop.quit ();
       this.cancel_draw();
+    }
+    
+    public uint32 get_xcb_id(){
+      return this.window;
+    }
+    
+    public void set_modal(bool mode){
+        uint32 modal = (uint32)Global.atoms.lookup(atom_names._net_wm_state_modal);
+        if(mode){
+          Global.C.change_property_uint32  ( Xcb.PropMode.APPEND,
+                               this.window,
+                               Global.atoms.lookup(atom_names._net_wm_state),
+                               Xcb.Atom.ATOM,
+                               1,
+                               &modal);
+        }
+    }
+
+    public void set_transient_for(uint32 xcb_widow_id){
+//~         uint32 modal = (uint32)Global.atoms.lookup(atom_names._net_wm_state_modal);
+          Global.C.change_property_uint32  ( Xcb.PropMode.APPEND,
+                               this.window,
+                               Xcb.Atom.WM_TRANSIENT_FOR,
+                               Xcb.Atom.WINDOW,
+                               1,
+                               &xcb_widow_id);
     }
 
     public signal void size_changed(uint width,uint height);//for parents
@@ -820,6 +855,14 @@ namespace Ltk{
         Global.atoms.insert(atom_names._string,
           Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._string)).atom);
 
+      if(!Global.atoms.contains(atom_names._net_wm_state))
+        Global.atoms.insert(atom_names._net_wm_state,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_state)).atom);
+
+      if(!Global.atoms.contains(atom_names._net_wm_state_modal))
+        Global.atoms.insert(atom_names._net_wm_state_modal,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_state_modal)).atom);
+
       Global.deleteWindowAtom = Global.atoms.lookup(atom_names.wm_delete_window);
       Global.net_wm_ping_atom = Global.atoms.lookup(atom_names._net_wm_ping);
 
@@ -839,67 +882,7 @@ namespace Ltk{
           Global.loop.quit();
           return false;
           }
-         Xcb.GenericEvent event;
-         bool _return = true;
-//~           debug( "!!!!!!!!!!!event");
-          /**
-           * @brief Bit mask to find event type regardless of event source.
-           *
-           * Each event in the X11 protocol contains an 8-bit type code.
-           * The most-significant bit in this code is set if the event was
-           * generated from a SendEvent request. This mask can be used to
-           * determine the type of event regardless of how the event was
-           * generated. See the X11R6 protocol specification for details.
-           */
-          /*#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
-          #define XCB_EVENT_RESPONSE_TYPE(e)   (e->response_type &  XCB_EVENT_RESPONSE_TYPE_MASK)
-          #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
-
-          while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
-//~             debug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
-            switch (event.response_type & ~0x80) {
-              case Xcb.EXPOSE:
-              case Xcb.CLIENT_MESSAGE:
-                 Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
-                 _return = Global.windows.lookup(e.window).process_event(event);
-              break;
-              case Xcb.CONFIGURE_NOTIFY:
-                 Xcb.ConfigureNotifyEvent e = (Xcb.ConfigureNotifyEvent)event;
-                 _return = Global.windows.lookup(e.window).process_event(event);
-              break;
-              case Xcb.MOTION_NOTIFY:
-                 Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
-                 _return = Global.windows.lookup(e.event).process_event(event);
-              break;
-              case Xcb.ENTER_NOTIFY:
-                 Xcb.EnterNotifyEvent e = (Xcb.EnterNotifyEvent)event;
-                 _return = Global.windows.lookup(e.event).process_event(event);
-              break;
-              case Xcb.LEAVE_NOTIFY:
-                 Xcb.LeaveNotifyEvent e = (Xcb.LeaveNotifyEvent)event;
-                 _return = Global.windows.lookup(e.event).process_event(event);
-              break;
-              case Xcb.KEY_PRESS:
-                 Xcb.KeyPressEvent e = (Xcb.KeyPressEvent)event;
-                 _return = Global.windows.lookup(e.event).process_event(event);
-              break;
-              case Xcb.KEY_RELEASE:
-                 Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
-                 _return = Global.windows.lookup(e.event).process_event(event);
-              break;
-              case Xcb.BUTTON_PRESS:
-                 Xcb.ButtonPressEvent e = (Xcb.ButtonPressEvent)event;
-                 _return = Global.windows.lookup(e.event).process_event(event);
-              break;
-              case Xcb.BUTTON_RELEASE:
-                 Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
-                 _return = Global.windows.lookup(e.event).process_event(event);
-              break;
-             }
-           Global.C.flush();
-           free(event);
-          }
-          return _return;
+          return xcb_pool_for_event();
         });
   //~     var xcb_source = new GLib.Source();
   //~     xcb_source.set_name("Ltk XCB event source");
@@ -930,6 +913,101 @@ namespace Ltk{
 //~     surface.destroy();
 //~     xcb_disconnect(c);
     }//run
+    
+    public static bool xcb_pool_for_event(MainLoop loop = Global.loop,uint32 onlywindow = 0){
+         Xcb.GenericEvent event;
+         bool _return = true;
+
+//~           debug( "!!!!!!!!!!!event");
+          /**
+           * @brief Bit mask to find event type regardless of event source.
+           *
+           * Each event in the X11 protocol contains an 8-bit type code.
+           * The most-significant bit in this code is set if the event was
+           * generated from a SendEvent request. This mask can be used to
+           * determine the type of event regardless of how the event was
+           * generated. See the X11R6 protocol specification for details.
+           */
+          /*#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
+          #define XCB_EVENT_RESPONSE_TYPE(e)   (e->response_type &  XCB_EVENT_RESPONSE_TYPE_MASK)
+          #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
+
+          while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
+//~             debug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
+            switch (event.response_type & ~0x80) {
+              case Xcb.EXPOSE:
+              case Xcb.CLIENT_MESSAGE:
+                 Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.window)||
+                     onlywindow == 0){
+                 _return = Global.windows.lookup(e.window).process_event(event);
+                   if(!_return){
+                     loop.quit ();
+                     }
+                 }
+              break;
+              case Xcb.CONFIGURE_NOTIFY:
+                 Xcb.ConfigureNotifyEvent e = (Xcb.ConfigureNotifyEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.window)||
+                     onlywindow == 0){
+                  _return = Global.windows.lookup(e.window).process_event(event);
+                }
+              break;
+              case Xcb.MOTION_NOTIFY:
+                 Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.event)||
+                     onlywindow == 0){
+                  _return = Global.windows.lookup(e.event).process_event(event);
+                 }
+              break;
+              case Xcb.ENTER_NOTIFY:
+                 Xcb.EnterNotifyEvent e = (Xcb.EnterNotifyEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.event)||
+                     onlywindow == 0){
+                 _return = Global.windows.lookup(e.event).process_event(event);
+                 }
+              break;
+              case Xcb.LEAVE_NOTIFY:
+                 Xcb.LeaveNotifyEvent e = (Xcb.LeaveNotifyEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.event)||
+                     onlywindow == 0){
+                  _return = Global.windows.lookup(e.event).process_event(event);
+                 }
+              break;
+              case Xcb.KEY_PRESS:
+                 Xcb.KeyPressEvent e = (Xcb.KeyPressEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.event)||
+                     onlywindow == 0){
+                  _return = Global.windows.lookup(e.event).process_event(event);
+                 }
+              break;
+              case Xcb.KEY_RELEASE:
+                 Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.event)||
+                     onlywindow == 0){
+                  _return = Global.windows.lookup(e.event).process_event(event);
+                 }
+              break;
+              case Xcb.BUTTON_PRESS:
+                 Xcb.ButtonPressEvent e = (Xcb.ButtonPressEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.event)||
+                     onlywindow == 0){
+                  _return = Global.windows.lookup(e.event).process_event(event);
+                 }
+              break;
+              case Xcb.BUTTON_RELEASE:
+                 Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
+                 if((onlywindow != 0 && onlywindow == e.event)||
+                     onlywindow == 0){
+                  _return = Global.windows.lookup(e.event).process_event(event);
+                 }
+              break;
+             }
+           Global.C.flush();
+           free(event);
+          }
+      return _return;
+    }//xcb_pool_for_event
 
   }
 
@@ -1737,6 +1815,18 @@ namespace Ltk{
            debug("window on_button_press widget=%p",this.focused_widget);
         }
     }//on_button_press
+    
+    public uint32 get_xcb_id(){
+      return this.window.get_xcb_id();
+    }
+    
+    public void set_modal(bool mode){
+      this.window.set_modal(mode);
+    }
+
+    public void set_transient_for(uint32 xcb_widow_id){
+      this.window.set_transient_for(xcb_widow_id);
+    }
 
   }//class Window
 
@@ -1819,6 +1909,7 @@ namespace Ltk{
     public override void on_button_release(uint button,uint x, uint y){
       this.state &= ~WidgetState.activated;
       this.damaged = true;//redraw button with new state
+      this.on_click();
     }
     private void damage_on_mouse_event(uint x,uint y){
       this.damaged = true;//redraw button with new state
@@ -1841,7 +1932,34 @@ namespace Ltk{
     public override bool get_focus(){
       return this._focused;
     }//get_focus
+    public signal void on_click();
   }//Button
+
+  public class Dialog: Window{
+    private weak Window parent_window;
+    public Dialog(Window parent){
+      this.parent_window = parent;
+    }
+
+    public void run(){
+      this.set_modal(true);
+      this.set_transient_for(this.parent_window.get_xcb_id());
+      this.show();
+      var loop = new MainLoop ();
+      var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
+      channel.add_watch(IOCondition.IN,  (source, condition) => {
+          if (condition == IOCondition.HUP) {
+          debug ("The connection has been broken.");
+          Global.loop.quit();
+          return false;
+          }
+          return Global.xcb_pool_for_event(loop,this.get_xcb_id());
+        });
+
+      loop.run();
+      debug ("Dialog was quit");
+    }
+  }//class Dialog
 
   [SimpleType]
   [CCode (has_type_id = false)]
