@@ -75,6 +75,8 @@ namespace Ltk{
     public static const string _string = "STRING";
     public static const string _net_wm_state = "_NET_WM_STATE";
     public static const string _net_wm_state_modal = "_NET_WM_STATE_MODAL";
+    public static const string _net_wm_window_type = "_NET_WM_WINDOW_TYPE";
+    public static const string _net_wm_window_type_popup_menu = "_NET_WM_WINDOW_TYPE_POPUP_MENU";
   }
 
 //~   [SimpleType]
@@ -605,11 +607,15 @@ namespace Ltk{
                       this.on_focus();
                   }else if(e.data.data32[0] == Global.net_wm_ping_atom){
                      debug("Global.net_wm_ping_atom");
+                     e.window = Global.screen.root;
+                     Global.C.send_event(false,0,0,e);//PONG, XCB_SEND_EVENT_DEST_POINTER_WINDOW == 0
                   }else if(e.data.data32[0] == Global.deleteWindowAtom){
                       _continue = this.on_quit();//true to quit, false to continue
                       if(_continue){
                         this.quit();
                         _continue = false;
+                      }else{
+                        _continue = true;
                       }
                   }
                 }
@@ -724,7 +730,7 @@ namespace Ltk{
       return this.window;
     }
     
-    public void set_modal(bool mode){
+    public void set_type_modal(bool mode){
         uint32 modal = (uint32)Global.atoms.lookup(atom_names._net_wm_state_modal);
         if(mode){
           Global.C.change_property_uint32  ( Xcb.PropMode.APPEND,
@@ -733,17 +739,34 @@ namespace Ltk{
                                Xcb.Atom.ATOM,
                                1,
                                &modal);
+        }else{
+          Global.C.change_property_uint32  ( Xcb.PropMode.REPLACE,
+                               this.window,
+                               Global.atoms.lookup(atom_names._net_wm_state),
+                               Xcb.Atom.ATOM,
+                               0,
+                               &modal);
         }
+
+    }
+    public void set_type_popup_menu(){
+        uint32 popupA = (uint32)Global.atoms.lookup(atom_names._net_wm_window_type_popup_menu);
+          Global.C.change_property_uint32  ( Xcb.PropMode.REPLACE,
+                               this.window,
+                               Global.atoms.lookup(atom_names._net_wm_window_type),
+                               Xcb.Atom.ATOM,
+                               1,
+                               &popupA);
     }
 
-    public void set_transient_for(uint32 xcb_widow_id){
+    public void set_transient_for(XcbWindow parent){
 //~         uint32 modal = (uint32)Global.atoms.lookup(atom_names._net_wm_state_modal);
           Global.C.change_property_uint32  ( Xcb.PropMode.APPEND,
                                this.window,
                                Xcb.Atom.WM_TRANSIENT_FOR,
                                Xcb.Atom.WINDOW,
                                1,
-                               &xcb_widow_id);
+                               &parent.window);
     }
 
     public signal void size_changed(uint width,uint height);//for parents
@@ -862,6 +885,14 @@ namespace Ltk{
       if(!Global.atoms.contains(atom_names._net_wm_state_modal))
         Global.atoms.insert(atom_names._net_wm_state_modal,
           Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_state_modal)).atom);
+
+      if(!Global.atoms.contains(atom_names._net_wm_window_type))
+        Global.atoms.insert(atom_names._net_wm_window_type,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_window_type)).atom);
+
+      if(!Global.atoms.contains(atom_names._net_wm_window_type_popup_menu))
+        Global.atoms.insert(atom_names._net_wm_window_type_popup_menu,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_window_type_popup_menu)).atom);
 
       Global.deleteWindowAtom = Global.atoms.lookup(atom_names.wm_delete_window);
       Global.net_wm_ping_atom = Global.atoms.lookup(atom_names._net_wm_ping);
@@ -1816,16 +1847,8 @@ namespace Ltk{
         }
     }//on_button_press
     
-    public uint32 get_xcb_id(){
-      return this.window.get_xcb_id();
-    }
-    
-    public void set_modal(bool mode){
-      this.window.set_modal(mode);
-    }
-
-    public void set_transient_for(uint32 xcb_widow_id){
-      this.window.set_transient_for(xcb_widow_id);
+    public weak XcbWindow get_xcb_window(){
+      return this.window;
     }
 
   }//class Window
@@ -1942,8 +1965,9 @@ namespace Ltk{
     }
 
     public void run(){
-      this.set_modal(true);
-      this.set_transient_for(this.parent_window.get_xcb_id());
+      var xcbwin = this.get_xcb_window();
+      xcbwin.set_type_modal(true);
+      xcbwin.set_transient_for(this.parent_window.get_xcb_window());
       this.show();
       var loop = new MainLoop ();
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
@@ -1953,13 +1977,22 @@ namespace Ltk{
           Global.loop.quit();
           return false;
           }
-          return Global.xcb_pool_for_event(loop,this.get_xcb_id());
+          return Global.xcb_pool_for_event(loop,this.get_xcb_window().get_xcb_id());
         });
 
       loop.run();
       debug ("Dialog was quit");
     }
   }//class Dialog
+
+public class PopupMenu: Window{
+    private weak Window parent_window;
+    public PopupMenu(Window parent){
+      this.parent_window = parent;
+      this.get_xcb_window().set_type_popup_menu();
+    }
+}//class PopupMenu
+
 
   [SimpleType]
   [CCode (has_type_id = false)]

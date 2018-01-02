@@ -89,14 +89,17 @@ int main (string[] argv) {
     weak Ltk.Window win_parent = window;
     button3.on_click.connect(()=>{
 			debug("__________ button3.on_click");
-		    var dialog = new Ltk.Dialog(win_parent);
+//~ 		    var dialog = new Ltk.Dialog(win_parent);
+		    var dialog = new Ltk.PopupMenu(win_parent);
 			dialog.place_policy = Ltk.SOptions.place_horizontal;
 			dialog.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
 			dialog.set_title("xcb_vala_dialog");
 
 			var butt = new Ltk.Button("Hello from dialog!");
 			dialog.add(butt);
-			dialog.run();
+			dialog.show();
+			dialog.ref();
+//~ 			dialog.run();
 
 		});
 

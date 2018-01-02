@@ -167,6 +167,7 @@ namespace Xcb {
 		public VoidCookie convert_selection (Window requestor, AtomT selection, AtomT target, AtomT property, Timestamp time);
 
 		//send_event
+		public VoidCookie send_event(bool propagate, Window destination, uint32 event_mask, uint8* event);
 
 		public GrabPointerCookie grab_pointer (bool owner_events, Window grab_window, uint16 event_mask, GrabMode pointer_mode, GrabMode keyboard_mode, Window confine_to, Cursor cursor, Timestamp time);
 		public GrabPointerCookie grab_pointer_unchecked (bool owner_events, Window grab_window, uint16 event_mask, GrabMode pointer_mode, GrabMode keyboard_mode, Window confine_to, Cursor cursor, Timestamp time);
