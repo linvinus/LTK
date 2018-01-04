@@ -285,7 +285,7 @@ namespace Ltk{
 
   }//class WidgetList
   /********************************************************************/
-  public class XcbWindow{
+  public class XcbWindow : GLib.Object{
     private uint32 window = 0;
     private uint32 pixmap = 0;
     private uint32 pixmap_gc = 0;
@@ -318,6 +318,18 @@ namespace Ltk{
     private int pos_y = -1;
     private uint min_width;
     private uint min_height;
+    public int x {
+			get {return (int)this.pos_x;}
+		}
+    public int y {
+			get {return (int)this.pos_y;}
+		}
+    public uint width {
+			get {return this.min_width;}
+		}
+    public uint height {
+			get {return this.min_height;}
+		}
     private Allocation damage_region;
     private uint draw_callback_timer;
 
@@ -439,7 +451,8 @@ namespace Ltk{
       Global.C.free_pixmap(this.pixmap);
       Global.C.unmap_window(this.window);
       Global.C.destroy_window(this.window);
-
+      Global.xcb_ungrab_pointer(this);
+      
       if(Global.windows.lookup(this.window)!=null){
         Global.windows.remove(this.window);
         debug("~XcbWindow %u",this.window);
@@ -757,6 +770,9 @@ namespace Ltk{
                                Xcb.Atom.ATOM,
                                1,
                                &popupA);
+        uint32 values[1];
+        values[0] = 1;
+        Global.C.change_window_attributes (this.window, Xcb.CW.OVERRIDE_REDIRECT, values);
     }
 
     public void set_transient_for(XcbWindow parent){
@@ -767,6 +783,51 @@ namespace Ltk{
                                Xcb.Atom.WINDOW,
                                1,
                                &parent.window);
+    }
+
+    public bool grab_pointer(){
+      uint16 grab_mask = Xcb.EventMask.BUTTON_PRESS|
+                  Xcb.EventMask.BUTTON_RELEASE|
+                  /*Xcb.EventMask.POINTER_MOTION|*/
+                  Xcb.EventMask.LEAVE_WINDOW|
+                  Xcb.EventMask.ENTER_WINDOW;
+
+            var reply = Global.xcb_grab_pointer(
+                this,
+                true,               /* get all pointer events specified by the following mask */
+                /*this.window*/Global.screen.root,        /* grab the root window */
+                /*XCB_NONE*/ grab_mask,            /* which events to let through */
+                Xcb.GrabMode.ASYNC, /* pointer events should continue as normal */
+                Xcb.GrabMode.ASYNC, /* keyboard mode */
+                /*XCB_NONE*/ 0,            /* confine_to = in which window should the cursor stay */
+                /*cursor*/0,              /* we change the cursor to whatever the user wanted */
+                /*XCB_CURRENT_TIME*/ 0
+            );
+
+        if (reply == Xcb.GrabStatus.SUCCESS){
+            return true;
+        }
+        return false;
+    }//grab_pointer
+
+    public bool ungrab_pointer(){
+      return Global.xcb_ungrab_pointer(this);
+    }
+    
+    public void query_pointer(
+    /*ref uint8 same_screen,
+		ref Xcb.Window root,
+		ref Xcb.Window child,*/
+		ref int16 root_x,
+		ref int16 root_y,
+		ref int16 win_x,
+		ref int16 win_y
+    ){
+      var reply = Global.C.query_pointer_reply(Global.C.query_pointer(this.window));
+      root_x = reply.root_x;
+      root_y = reply.root_y;
+      win_x = reply.win_x;
+      win_y = reply.win_y;
     }
 
     public signal void size_changed(uint width,uint height);//for parents
@@ -801,6 +862,8 @@ namespace Ltk{
     private static MainLoop loop;
     public static GLib.HashTable<Xcb.Window,unowned XcbWindow> windows;
     private static uint xcb_source;
+    private static unowned XcbWindow grab_pointer_author;
+    private static Xcb.Window grab_window_remap[2];
 
     private static void null_handler(string? domain, LogLevelFlags flags, string message) {
           }
@@ -829,7 +892,7 @@ namespace Ltk{
           Log.set_handler(null, LogLevelFlags.LEVEL_MASK & ~LogLevelFlags.LEVEL_ERROR, null_handler);
 
       Global.atoms = new GLib.HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
-      Global.windows = new GLib.HashTable<Xcb.Window,XcbWindow> (direct_hash, direct_equal);
+      Global.windows = new GLib.HashTable<Xcb.Window,unowned XcbWindow> (direct_hash, direct_equal);
 //~       ((GLib.HashTable)Global.windows).ref();
       Global.C = new Xcb.Connection();
 
@@ -962,16 +1025,21 @@ namespace Ltk{
           /*#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
           #define XCB_EVENT_RESPONSE_TYPE(e)   (e->response_type &  XCB_EVENT_RESPONSE_TYPE_MASK)
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
-
+          
           while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
 //~             debug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
+            unowned XcbWindow?  win = null;
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
                  Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.window)||
-                     onlywindow == 0){
-                 _return = Global.windows.lookup(e.window).process_event(event);
+                 var xcbwin = e.window;
+                 if(Global.grab_window_remap[0] == xcbwin){
+                   xcbwin = Global.grab_window_remap[1];
+                 }
+                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
+                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
+                 _return = win.process_event(event);
                    if(!_return){
                      loop.quit ();
                      }
@@ -979,58 +1047,31 @@ namespace Ltk{
               break;
               case Xcb.CONFIGURE_NOTIFY:
                  Xcb.ConfigureNotifyEvent e = (Xcb.ConfigureNotifyEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.window)||
-                     onlywindow == 0){
-                  _return = Global.windows.lookup(e.window).process_event(event);
+                 var xcbwin = e.window;
+                 if(Global.grab_window_remap[0] == xcbwin){
+                   xcbwin = Global.grab_window_remap[1];
+                 }
+                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
+                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
+                  _return = win.process_event(event);
                 }
               break;
               case Xcb.MOTION_NOTIFY:
-                 Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.event)||
-                     onlywindow == 0){
-                  _return = Global.windows.lookup(e.event).process_event(event);
-                 }
-              break;
               case Xcb.ENTER_NOTIFY:
-                 Xcb.EnterNotifyEvent e = (Xcb.EnterNotifyEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.event)||
-                     onlywindow == 0){
-                 _return = Global.windows.lookup(e.event).process_event(event);
-                 }
-              break;
               case Xcb.LEAVE_NOTIFY:
-                 Xcb.LeaveNotifyEvent e = (Xcb.LeaveNotifyEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.event)||
-                     onlywindow == 0){
-                  _return = Global.windows.lookup(e.event).process_event(event);
-                 }
-              break;
               case Xcb.KEY_PRESS:
-                 Xcb.KeyPressEvent e = (Xcb.KeyPressEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.event)||
-                     onlywindow == 0){
-                  _return = Global.windows.lookup(e.event).process_event(event);
-                 }
-              break;
               case Xcb.KEY_RELEASE:
-                 Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.event)||
-                     onlywindow == 0){
-                  _return = Global.windows.lookup(e.event).process_event(event);
-                 }
-              break;
               case Xcb.BUTTON_PRESS:
-                 Xcb.ButtonPressEvent e = (Xcb.ButtonPressEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.event)||
-                     onlywindow == 0){
-                  _return = Global.windows.lookup(e.event).process_event(event);
-                 }
-              break;
               case Xcb.BUTTON_RELEASE:
-                 Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
-                 if((onlywindow != 0 && onlywindow == e.event)||
-                     onlywindow == 0){
-                  _return = Global.windows.lookup(e.event).process_event(event);
+                 Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
+                 debug("BUTTON_PRESS window=%u child=%u root=%u",e.event,e.child,e.root);
+                 var xcbwin = e.event;
+                 if(Global.grab_window_remap[0] == xcbwin){
+                   xcbwin = Global.grab_window_remap[1];
+                 }
+                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
+                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
+                  _return = win.process_event(event);
                  }
               break;
              }
@@ -1040,6 +1081,48 @@ namespace Ltk{
       return _return;
     }//xcb_pool_for_event
 
+    public static Xcb.GrabStatus xcb_grab_pointer (
+    Ltk.XcbWindow author,
+    bool owner_events,
+    Xcb.Window grab_window,
+    uint16 event_mask,
+    Xcb.GrabMode pointer_mode,
+    Xcb.GrabMode keyboard_mode,
+    Xcb.Window confine_to,
+    Xcb.Cursor cursor,
+    Xcb.Timestamp time){
+        if(Global.grab_pointer_author == null ){
+            var reply = Global.C.grab_pointer_reply(Global.C.grab_pointer(
+                owner_events,
+                grab_window,
+                event_mask,
+                pointer_mode,
+                keyboard_mode,
+                confine_to,
+                cursor,
+                time
+            ));
+
+            if(reply.status == Xcb.GrabStatus.SUCCESS){
+                Global.grab_pointer_author = author;
+                Global.grab_window_remap[0]=grab_window;//event destination
+                Global.grab_window_remap[1]=author.get_xcb_id();//remap to
+            }
+            return reply.status;
+        }else{
+            return Xcb.GrabStatus.FROZEN;//error
+        }
+    }//xcb_grab_pointer
+
+    public static bool xcb_ungrab_pointer (Ltk.XcbWindow author){
+      if(Global.grab_pointer_author == author){
+        Global.C.ungrab_pointer(0);
+        Global.grab_pointer_author = null;
+        Global.grab_window_remap[0]=Global.grab_window_remap[1]=0;
+        return true;
+      }
+      return false;
+    }//xcb_ungrab_pointer
   }
 
   /********************************************************************/
@@ -1989,7 +2072,29 @@ public class PopupMenu: Window{
     private weak Window parent_window;
     public PopupMenu(Window parent){
       this.parent_window = parent;
-      this.get_xcb_window().set_type_popup_menu();
+      var win = this.get_xcb_window();
+      win.set_type_popup_menu();
+      win.set_transient_for(this.parent_window.get_xcb_window());
+      debug("PopupMenu grab_pointer=%u win_id=%u",(uint)win.grab_pointer(),win.get_xcb_id());
+      win.on_button_press.connect(this._on_button_press);
+      int16 x=0,
+            y=0,
+            wx=0,
+            wy=0;
+      win.query_pointer(ref x,ref y,ref wx,ref wy);
+      win.move_resize(x,y,this.min_width,this.min_height);
+    }
+    private void _on_button_press(uint button,uint x, uint y){
+        var win = this.get_xcb_window();
+        debug("PopupMenu on_button_press xy=%u,%u",x,y);
+        if( !( ( x > win.x  && x < (win.x + win.width) ) &&
+                     ( y > win.y  && y < (win.y + win.height) ) ) ){
+                         debug("PopupMenu destroy count=%u",this.ref_count);
+//~                                  win.unref();
+                         win.on_button_press.disconnect(_on_button_press);
+                         this.unref();
+                         
+        }
     }
 }//class PopupMenu
 
