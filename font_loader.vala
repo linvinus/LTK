@@ -18,7 +18,7 @@ public class FontLoader {
     FT_Library library;
     FT_Init_FreeType(out library);
     var error = FT_New_Face(library, path, 0, out face);
-    if (error != 0) throw new FileError.ACCES("");
+    if (error != 0) throw new FileError.ACCES("Error: unable to open font '%s'",path);
     return cairo_ft_font_face_create_for_ft_face(face, 0);
   }
   public static void destroy(){

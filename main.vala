@@ -22,14 +22,13 @@ using Posix;
 
 int main (string[] argv) {
 
-    Ltk.Global.Init(true);
+    Ltk.Global.Init(true,"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf");
 
     var window = new Ltk.Window();
     window.place_policy = Ltk.SOptions.place_horizontal;
     window.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
     window.set_title("xcb_vala");
 //~     window.set_size(800,600);
-    window.load_font_with_size("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",14);
 //~     window.show();
 
     var container = new Ltk.Container();

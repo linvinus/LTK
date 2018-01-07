@@ -542,13 +542,6 @@ namespace Ltk{
       }
     }
 
-    public void load_font_with_size(string fpatch,uint size){
-      var F = FontLoader.load(fpatch);
-      this.cr.set_font_face(F);
-      this.cr.set_font_size (size);
-    }
-
-
     public void on_configure(Xcb.ConfigureNotifyEvent e){
 
   //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
@@ -679,6 +672,8 @@ namespace Ltk{
       if((y + height) > this.min_height ) height = this.min_height - y;
       debug( "XCB **** draw_area xy=%u,%u wh=%u,%u",x, y, width, height);
       cr.save();
+      cr.set_font_face(Global.Font);//use default font,avoid call cairo_scaled_font_create,and using libfontconfig, reduce RSS my 1MB
+      cr.set_font_size (12);        //default size
       cr.rectangle (x, y, width, height);
       cr.clip ();
       this.draw(cr);
@@ -864,6 +859,7 @@ namespace Ltk{
     private static uint xcb_source;
     private static unowned XcbWindow grab_pointer_author;
     private static Xcb.Window grab_window_remap[2];
+    public static Cairo.FontFace Font;
 
     private static void null_handler(string? domain, LogLevelFlags flags, string message) {
           }
@@ -878,7 +874,7 @@ namespace Ltk{
           }
 
 
-    public  static void Init(bool debug_enable){
+    public  static void Init(bool debug_enable,string fpath){
         if(debug_enable) {
           Log.set_handler(null,
             LogLevelFlags.LEVEL_MASK &
@@ -890,6 +886,12 @@ namespace Ltk{
 
         }else
           Log.set_handler(null, LogLevelFlags.LEVEL_MASK & ~LogLevelFlags.LEVEL_ERROR, null_handler);
+
+	  try{
+		Global.Font = FontLoader.load(fpath);//default application font
+	  }catch(FileError e){
+		  critical(e.message);
+	  }
 
       Global.atoms = new GLib.HashTable<string, Xcb.AtomT?> (str_hash, str_equal);
       Global.windows = new GLib.HashTable<Xcb.Window,unowned XcbWindow> (direct_hash, direct_equal);
@@ -993,7 +995,6 @@ namespace Ltk{
     public static void run(){
       Global.loop.run ();
       debug ("atoms.remove_all");
-      Global.atoms.foreach((k,v)=>{ free((void*)v); });
       Global.atoms.remove_all();
 //~       debug ("windows.remove_all");
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
@@ -1824,9 +1825,6 @@ namespace Ltk{
 
     public void set_title(string title){
       this.window.set_title(title);
-    }
-    public void load_font_with_size(string fpatch,uint size){
-      this.window.load_font_with_size(fpatch, size);
     }
 
     public override void show(){
