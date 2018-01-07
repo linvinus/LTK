@@ -16,3 +16,14 @@ DRAW
 https://cairographics.org/tutorial/
 https://cgit.freedesktop.org/ccss/tree/
 https://www.cairographics.org/cookbook/roundedrectangles/
+
+[DEBUG]
+#sort by RSS
+#https://stackoverflow.com/questions/46851675/examining-virtual-memory-block-reported-by-pmap
+pmap -x `pidof xcb_vala` | sort -k 3,3n
+#https://unix.stackexchange.com/questions/116327/loading-of-shared-libraries-and-ram-usage
+pmap -XX -q `pidof altyo` | sort -k 7,7n | awk '{print $7" "$9" "$30; sum+=$7-$9 }END{print sum}'
+
+#dump memory allocations include mmap,stack
+valgrind --tool=massif  --pages-as-heap=yes  ./tmpfs/xcb_vala
+ms_print ./massif.out.19649 | less
