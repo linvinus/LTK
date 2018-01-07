@@ -1241,9 +1241,8 @@ namespace Ltk{
         this.parent = parent;
       this.engine = new ThemeEngine("");
 
-      this.engine.map.bg[DrawStyle.normal].r = this.engine.map.bg[DrawStyle.normal].g = this.engine.map.bg[DrawStyle.normal].b = 0.5;
-      this.engine.map.br[DrawStyle.normal].r = this.engine.map.br[DrawStyle.normal].g = this.engine.map.br[DrawStyle.normal].b = 0.3;
-      this.engine.map.bg[DrawStyle.normal].r=0.5;
+      this.engine.map.bg[DrawStyle.normal] = {128,128,128,255};
+      this.engine.map.br[DrawStyle.normal] = {76,76,76,255};
     }//create
 
     ~Widget(){
@@ -1948,30 +1947,16 @@ namespace Ltk{
       this.label = label;
       this.min_width = 50;
       this.min_height = 50;
-      engine.map.bg[DrawStyle.normal].r = 0.0;
-      engine.map.bg[DrawStyle.normal].g = 0.5;
-      engine.map.bg[DrawStyle.normal].b = 0.0;
+      engine.map.bg[DrawStyle.normal] = {0,128,0,255};
 
-      engine.map.bg[DrawStyle.focused].r = 0.0;
-      engine.map.bg[DrawStyle.focused].g = 0.9;
-      engine.map.bg[DrawStyle.focused].b = 0.0;
-      engine.map.br[DrawStyle.focused].r = 0.5;
-      engine.map.br[DrawStyle.focused].g = 0.0;
-      engine.map.br[DrawStyle.focused].b = 0.0;
+      engine.map.bg[DrawStyle.focused] = {0,229,0,255};
+      engine.map.br[DrawStyle.focused] = {128,0,0,255};
 
-      engine.map.bg[DrawStyle.active].r = 0.5;
-      engine.map.bg[DrawStyle.active].g = 0.0;
-      engine.map.bg[DrawStyle.active].b = 0.9;
-      engine.map.br[DrawStyle.active].r = 0.5;
-      engine.map.br[DrawStyle.active].g = 0.0;
-      engine.map.br[DrawStyle.active].b = 0.0;
+      engine.map.bg[DrawStyle.active] = {128,0,229,255};
+      engine.map.br[DrawStyle.active] = {128,0,0,255};
 
-      engine.map.bg[DrawStyle.hover].r = 0.0;
-      engine.map.bg[DrawStyle.hover].g = 0.5;
-      engine.map.bg[DrawStyle.hover].b = 0.0;
-      engine.map.br[DrawStyle.hover].r = 0.5;
-      engine.map.br[DrawStyle.hover].g = 0.0;
-      engine.map.br[DrawStyle.hover].b = 0.5;
+      engine.map.bg[DrawStyle.hover] = {0,128,0,255};
+      engine.map.br[DrawStyle.hover] = {128,0,128,255};
 
       engine.border.left = 3;
       engine.border.right = 3;
@@ -1995,9 +1980,7 @@ namespace Ltk{
          cr.translate (0,(double)(this.A.height/2));
          if(this.label != null){
           cr.set_font_size (14.0);
-          cr.set_source_rgb(engine.map.text[this.engine.style].r,
-                            engine.map.text[this.engine.style].g,
-                            engine.map.text[this.engine.style].b);
+          engine.map.text[this.engine.style].set_source_rgb(cr);
           cr.show_text(this.label);
           }
          cr.stroke ();
@@ -2099,22 +2082,33 @@ public class PopupMenu: Window{
 }//class PopupMenu
 
 
-  [SimpleType]
+  /*[SimpleType] must not be simple type*/
   [CCode (has_type_id = false)]
-  public struct ColorRGB{
-    double r;
-    double g;
-    double b;
+  public struct ColorRGBA{
+    public uint8 r;
+    public uint8 g;
+    public uint8 b;
+    public uint8 a;
+    /*public ColorRGBA( uint8 r, uint8 g, uint8 b, uint8 a){
+      this.r = r;
+      this.g = g;
+      this.b = b;
+      this.a = a;
+    }*/
+    public void set_source_rgb(Cairo.Context cr){
+      cr.set_source_rgb((double)r/255.0,(double)g/255.0,(double)b/255.0);
+    }
   }
 
 //~   [SimpleType]
 [Compact]
 [CCode (has_type_id = false)]
   public class ColorMap{
-    public ColorRGB bg[5];
-    public ColorRGB fg[5];
-    public ColorRGB br[5];
-    public ColorRGB text[5];
+//~   public struct ColorMap{
+    public ColorRGBA bg[5];
+    public ColorRGBA fg[5];
+    public ColorRGBA br[5];
+    public ColorRGBA text[5];
   }
 
   [SimpleType]
@@ -2201,13 +2195,14 @@ public class PopupMenu: Window{
     public void draw_box(Cairo.Context cr,double corner_radius = 0){
       if(corner_radius == 0){
         cr.save();
-        cr.set_source_rgb(map.bg[this.style].r, map.bg[this.style].g, map.bg[this.style].b);
+        map.bg[this.style].set_source_rgb(cr);
         cr.rectangle (0, 0, width, height);
         cr.fill_preserve ();
-          cr.set_source_rgb(map.br[this.style].r, map.br[this.style].g, map.br[this.style].b);
-          cr.set_line_width(2);
-          cr.set_source_rgb(0, 0, 0);
-          cr.rectangle (0, 0, width, height);
+
+        map.br[this.style].set_source_rgb(cr);
+        cr.set_line_width(2);
+        cr.set_source_rgb(0, 0, 0);
+        cr.rectangle (0, 0, width, height);
 //~           cr.stroke ();
 //~           cr.restore();
         cr.stroke ();
@@ -2229,9 +2224,9 @@ public class PopupMenu: Window{
         cr.arc ( x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
         cr.close_path ();
 
-        cr.set_source_rgb(map.bg[this.style].r, map.bg[this.style].g, map.bg[this.style].b);
+        map.bg[this.style].set_source_rgb(cr);
         cr.fill_preserve ();
-        cr.set_source_rgb ( map.br[this.style].r, map.br[this.style].g, map.br[this.style].b);
+        map.br[this.style].set_source_rgb(cr);
         cr.set_line_width (border.left);
         cr.stroke ();
         cr.restore();
