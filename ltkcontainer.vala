@@ -365,8 +365,8 @@ namespace Ltk{
         foreach(var w in this.childs){
           cr.save();
 
-            if(this.have_background && (w.damaged || w is Ltk.Container)){//always propagate draw for container childs
-              if(!(w is Ltk.Container)){//container will draw it own background
+            if(w.damaged || w is Ltk.Container){//always propagate draw for container childs
+              if(this.have_background && !(w is Ltk.Container)){//container will draw it own background
                 uint _x = ( this.place_policy == SOptions.place_horizontal ? w.A.x    : this.A.x ),
                      _y = ( this.place_policy == SOptions.place_horizontal ? this.A.y : w.A.y ),
                      _w = ( this.place_policy == SOptions.place_horizontal ? w.A.width     : this.A.width ),
