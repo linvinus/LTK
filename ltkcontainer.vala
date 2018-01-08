@@ -222,7 +222,9 @@ namespace Ltk{
 
           if(extra_width_delta > this.min_width){
             extra_width_delta -= this.childs.fixed_width;
-            extra_width_delta = extra_width_delta/(this.childs.count-this.childs.fixed_width_count);
+            if(this.childs.count > this.childs.fixed_width_count){
+              extra_width_delta = extra_width_delta/(this.childs.count-this.childs.fixed_width_count);
+            }
           }else{
             extra_width_delta = 0;
           }
@@ -288,7 +290,9 @@ namespace Ltk{
 
           if(extra_height_delta > this.min_height){
             extra_height_delta -= this.childs.fixed_height;
-            extra_height_delta = extra_height_delta/(this.childs.count-this.childs.fixed_height_count);
+            if(this.childs.count > this.childs.fixed_height_count){
+              extra_height_delta = extra_height_delta/(this.childs.count-this.childs.fixed_height_count);
+            }
           }else{
             extra_height_delta = 0;
           }

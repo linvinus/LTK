@@ -77,6 +77,7 @@ namespace Ltk{
     private static unowned XcbWindow grab_pointer_author;
     private static Xcb.Window grab_window_remap[2];
     public static Cairo.FontFace Font;
+    public static Xcb.KeySymbols? syms = null;
 
     private static void null_handler(string? domain, LogLevelFlags flags, string message) {
           }
@@ -126,6 +127,8 @@ namespace Ltk{
       Global.setup = Global.C.get_setup();
       var s_iterator = Global.setup.roots_iterator();
       Global.screen = s_iterator.data;
+
+      Global.syms = Global.C.key_symbols_alloc();
 
 //~       Xcb.AtomT tmp_atom;
       if(!Global.atoms.contains(atom_names.wm_delete_window))
@@ -291,6 +294,10 @@ namespace Ltk{
                      onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
                   _return = win.process_event(event);
                  }
+              break;
+              case Xcb.MAPPING_NOTIFY:
+				  Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
+				  Xcb.refresh_keyboard_mapping(Global.syms, e);
               break;
              }
            Global.C.flush();

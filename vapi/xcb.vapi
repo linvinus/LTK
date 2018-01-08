@@ -553,6 +553,25 @@ namespace Xcb {
 
 		public VoidCookie no_operation_checked ();
 		public VoidCookie no_operation ();
+		public KeySymbols? key_symbols_alloc();
+		public void key_symbols_free(KeySymbols keysym);
+	}
+
+	[CCode (cname = "xcb_key_symbols_get_keycode")]
+	extern Keycode key_symbols_get_keycode(KeySymbols syms,KeySym sym);
+	[CCode (cname = "xcb_refresh_keyboard_mapping")]
+	extern int refresh_keyboard_mapping(KeySymbols syms,MappingNotifyEvent e);
+	[CCode (cname = "xcb_key_symbols_get_keysym")]
+	extern KeySym key_symbols_get_keysym(KeySymbols syms, Keycode keycode,int col);
+
+	[Compact]
+	[CCode (cname = "xcb_key_symbols_t", has_type_id = false, cheader_filename = "xcb/xcb_keysyms.h",ref_function = "", unref_function = "")]
+	public class KeySymbols{
+	}
+
+	[SimpleType]
+	[CCode (cname = "xcb_keysym_t", has_type_id = false)]
+	public struct KeySym : uint32 {
 	}
 
 	[CCode (cprefix = "XCB_CONN_", cname = "int", has_type_id = false)]
