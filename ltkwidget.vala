@@ -422,6 +422,9 @@ namespace Ltk{
       return false;
     }//get_focus
 
+    public virtual void allocation_changed(){
+    }
+
     public signal void size_changed(Widget src,Allocation old);//for parents
 //~     [Signal (action=true, detailed=true, run=true, no_recurse=true, no_hooks=true)]
 //~     [Signal (run="first")]

@@ -271,6 +271,7 @@ namespace Ltk{
             }else{
               w.A.width = new_width;
               w.A.height = new_height;
+              w.allocation_changed();
             }
 
             w.A.options ^= w.A.options;
@@ -340,6 +341,7 @@ namespace Ltk{
             }else{
               w.A.width = new_width;
               w.A.height = new_height;
+              w.allocation_changed();
             }
             w.A.options ^= w.A.options;
             w.A.options |= w.place_policy;
