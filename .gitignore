@@ -10,5 +10,5 @@ syntax: glob
 /data/altyo.c
 /*.c
 /*.h
-/tmpfs
+tmpfs/
 /data/#preferences.glade#
