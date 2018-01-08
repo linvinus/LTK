@@ -4541,5 +4541,28 @@ namespace Xkb {
 		public const int zerosuperior;
 		[CCode (cheader_filename = "xkbcommon/xkbcommon-keysyms.h", cname = "XKB_KEY_zstroke")]
 		public const int zstroke;
-	}
+	}//namespace Key
+
+        /*[CCode (cheader_filename = "X11/X.h", cname = "SHIFT_MASK")]*/
+        [Flags]
+        public enum ModifierType {
+                SHIFT_MASK = 1<<0,
+                LOCK_MASK = 1<<1,
+                CONTROL_MASK = 1<<2,
+                MOD1_MASK = 1<<3,
+                MOD2_MASK = 1<<4,
+                MOD3_MASK = 1<<5,
+                MOD4_MASK = 1<<6,
+                MOD5_MASK = 1<<7
+                /*BUTTON1_MASK = 1<<8,
+                BUTTON2_MASK = 1<<9,
+                BUTTON3_MASK = 1<<10,
+                BUTTON4_MASK = 1<<11,
+                BUTTON5_MASK = 1<<12,
+                SUPER_MASK = 1<<26,
+                HYPER_MASK = 1<<27,
+                META_MASK = 1<<28,
+                RELEASE_MASK = 1<<30,
+                MODIFIER_MASK = */
+        }
 }
