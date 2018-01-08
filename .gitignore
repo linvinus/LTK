@@ -4,11 +4,7 @@ syntax: glob
 *.swp
 *.lst
 .svn
-/altyo
-/hardcopy.0
 *.mo
-/data/altyo.c
 /*.c
 /*.h
-tmpfs/
-/data/#preferences.glade#
+/test/tmpfs

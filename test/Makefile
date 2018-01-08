@@ -42,7 +42,9 @@ endif
 VTE ?= $(shell pkg-config  --exists vte-2.91 && echo 2.91)
 VTE ?= $(shell pkg-config  --exists vte-2.90 && echo 2.90)
 
-VALA_FLAGS += --vapidir ./vapi  --pkg gobject-2.0 --pkg posix  --pkg glib-2.0 --pkg gio-2.0 --pkg gio-unix-2.0 --pkg xcb --pkg xcb-icccm --pkg cairo-xcb -X -lfreetype
+include ../Makefile
+
+VALA_FLAGS += $(LTK_FLAGS)
 #--pkg gdk-x11-3.0 --pkg cairo -X -lxkbcommon --pkg shm --pkg glib-2.0 --pkg gio-2.0 --pkg gio-unix-2.0
 #--pkg gtk+-3.0 --pkg gdk-x11-3.0 --pkg cairo --pkg posix --pkg gmodule-2.0
 
@@ -58,7 +60,7 @@ VALA_FLAGS += --vapidir ./vapi  --pkg gobject-2.0 --pkg posix  --pkg glib-2.0 --
 #DESTDIR?=
 PREFIX?=/usr
 
-VALA_FILES  =   main.vala font_loader.vala ltkmain.vala ltkwidget.vala ltkxcbwindow.vala ltkcontainer.vala ltkwindow.vala ltkbutton.vala ltkdialog.vala ltkpopupmenu.vala
+VALA_FILES  =   main.vala $(LTK_FILES)
 
 #VALA_FLAGS += --pkg gnome-keyring-1 -D HAVE_QLIST
 #VALA_FILES += 	altyo_quick_connectios.vala
