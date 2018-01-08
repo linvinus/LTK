@@ -341,5 +341,9 @@ namespace Ltk{
       }
       return false;
     }//xcb_ungrab_pointer
+    
+    public static void quit(){
+		loop.quit ();
+	}
   }//struct Global
 }//namespace Ltk
