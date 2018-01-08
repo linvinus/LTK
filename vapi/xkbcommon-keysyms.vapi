@@ -4543,16 +4543,24 @@ namespace Xkb {
 		public const int zstroke;
 	}//namespace Key
 
-        /*[CCode (cheader_filename = "X11/X.h", cname = "SHIFT_MASK")]*/
+        [CCode (cheader_filename = "X11/X.h",cname = "")]
         [Flags]
         public enum ModifierType {
+			    [CCode (cheader_filename = "X11/X.h", cname = "ShiftMask")]
                 SHIFT_MASK = 1<<0,
+			    [CCode (cheader_filename = "X11/X.h", cname = "LockMask")]
                 LOCK_MASK = 1<<1,
+			    [CCode (cheader_filename = "X11/X.h", cname = "ControlMask")]
                 CONTROL_MASK = 1<<2,
+			    [CCode (cheader_filename = "X11/X.h", cname = "Mod1Mask")]
                 MOD1_MASK = 1<<3,
+			    [CCode (cheader_filename = "X11/X.h", cname = "Mod2Mask")]
                 MOD2_MASK = 1<<4,
+			    [CCode (cheader_filename = "X11/X.h", cname = "Mod3Mask")]
                 MOD3_MASK = 1<<5,
+			    [CCode (cheader_filename = "X11/X.h", cname = "Mod4Mask")]
                 MOD4_MASK = 1<<6,
+			    [CCode (cheader_filename = "X11/X.h", cname = "Mod5Mask")]
                 MOD5_MASK = 1<<7
                 /*BUTTON1_MASK = 1<<8,
                 BUTTON2_MASK = 1<<9,
