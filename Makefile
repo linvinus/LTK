@@ -58,7 +58,7 @@ VALA_FLAGS += --vapidir ./vapi  --pkg gobject-2.0 --pkg posix  --pkg glib-2.0 --
 #DESTDIR?=
 PREFIX?=/usr
 
-VALA_FILES  =   main.vala font_loader.vala ltk.vala
+VALA_FILES  =   main.vala font_loader.vala ltkmain.vala ltkwidget.vala ltkxcbwindow.vala ltkcontainer.vala ltkwindow.vala ltkbutton.vala ltkdialog.vala ltkpopupmenu.vala
 
 #VALA_FLAGS += --pkg gnome-keyring-1 -D HAVE_QLIST
 #VALA_FILES += 	altyo_quick_connectios.vala
