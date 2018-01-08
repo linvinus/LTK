@@ -252,6 +252,7 @@ namespace Ltk{
   public class Widget : GLib.Object{
     public weak Container? parent = null;
     public WidgetList childs;
+    public bool have_background = true;
     private uint _min_width;
     public uint min_width{
       get{ return  this._min_width;}
@@ -376,7 +377,9 @@ namespace Ltk{
     public virtual bool draw(Cairo.Context cr){
         this.engine.begin(this.state,this.A.width,this.A.height);
         if(this.damaged){
-          this.engine.draw_box(cr);
+          if(this.have_background){
+            this.engine.draw_box(cr);
+          }
           this.engine.translate2box(cr);
 //~           this.engine.draw_border(cr,this.A.width, this.A.height, this.A.height / 20.0, 50);
           this.damaged=false;
