@@ -550,19 +550,45 @@ namespace Xcb {
 		//set_modifier_mapping
 
 		//get_modifier_mapping
+		public GetModifierMappingCookie get_modifier_mapping_unchecked ();
+		public GetModifierMappingCookie get_modifier_mapping ();
+    public GetModifierMappingReply? get_modifier_mapping_reply (GetModifierMappingCookie cookie, out GenericError? e = null);
+
 
 		public VoidCookie no_operation_checked ();
 		public VoidCookie no_operation ();
+		[CCode (cheader_filename = "xcb/xcb_keysyms.h")]
 		public KeySymbols? key_symbols_alloc();
+		[CCode (cheader_filename = "xcb/xcb_keysyms.h")]
 		public void key_symbols_free(KeySymbols keysym);
 	}
 
-	[CCode (cname = "xcb_key_symbols_get_keycode")]
+  [CCode (cname = "xcb_get_modifier_mapping_keycodes",array_length = false)]
+  extern unowned Keycode[] get_modifier_mapping_keycodes(GetModifierMappingReply reply);
+  [CCode (cname = "xcb_get_modifier_mapping_keycodes_length")]
+  extern int get_modifier_mapping_keycodes_length(GetModifierMappingReply reply);
+
+	[CCode (cname = "xcb_key_symbols_get_keycode", cheader_filename = "xcb/xcb_keysyms.h")]
 	extern Keycode key_symbols_get_keycode(KeySymbols syms,KeySym sym);
-	[CCode (cname = "xcb_refresh_keyboard_mapping")]
+	[CCode (cname = "xcb_refresh_keyboard_mapping", cheader_filename = "xcb/xcb_keysyms.h")]
 	extern int refresh_keyboard_mapping(KeySymbols syms,MappingNotifyEvent e);
-	[CCode (cname = "xcb_key_symbols_get_keysym")]
+	[CCode (cname = "xcb_key_symbols_get_keysym", cheader_filename = "xcb/xcb_keysyms.h")]
 	extern KeySym key_symbols_get_keysym(KeySymbols syms, Keycode keycode,int col);
+
+	[CCode (cname = "xcb_is_keypad_key", cheader_filename = "xcb/xcb_keysyms.h")]
+	extern bool is_keypad_key        (KeySym keysym);
+	[CCode (cname = "xcb_is_private_keypad_key", cheader_filename = "xcb/xcb_keysyms.h")]
+	extern bool is_private_keypad_key (KeySym keysym);
+	[CCode (cname = "xcb_is_cursor_key", cheader_filename = "xcb/xcb_keysyms.h")]
+	extern bool is_cursor_key        (KeySym keysym);
+	[CCode (cname = "xcb_is_pf_key", cheader_filename = "xcb/xcb_keysyms.h")]
+	extern bool is_pf_key            (KeySym keysym);
+	[CCode (cname = "xcb_is_function_key", cheader_filename = "xcb/xcb_keysyms.h")]
+	extern bool is_function_key      (KeySym keysym);
+	[CCode (cname = "xcb_is_misc_function_key", cheader_filename = "xcb/xcb_keysyms.h")]
+	extern bool is_misc_function_key  (KeySym keysym);
+	[CCode (cname = "xcb_is_modifier_key", cheader_filename = "xcb/xcb_keysyms.h")]
+	extern bool is_modifier_key      (KeySym keysym);
 
 	[Compact]
 	[CCode (cname = "xcb_key_symbols_t", has_type_id = false, cheader_filename = "xcb/xcb_keysyms.h",ref_function = "", unref_function = "")]
@@ -573,6 +599,22 @@ namespace Xcb {
 	[CCode (cname = "xcb_keysym_t", has_type_id = false)]
 	public struct KeySym : uint32 {
 	}
+
+	[SimpleType]
+	[CCode (cname = "xcb_mod_mask_t", has_type_id = false)]	
+	public enum ModMask{
+		SHIFT = 1,
+		LOCK = 2,
+		CONTROL = 4,
+		@1 = 8,
+		@2 = 16,
+		@3 = 32,
+		@4 = 64,
+		@5 = 128,
+		ANY = 32768
+	}
+	/** XCB_NO_SYMBOL fills in unused entries in xcb_keysym_t tables */
+	public const uint32 NO_SYMBOL;
 
 	[CCode (cprefix = "XCB_CONN_", cname = "int", has_type_id = false)]
 	public enum ConnectionError
@@ -1123,10 +1165,15 @@ namespace Xcb {
 	public struct GetModifierMappingCookie {
 	}
 
-	//[Compact]
-	//[CCode (cname = "xcb_get_modifier_mapping_reply_t", ref_function = "", unref_function = "free")]
-	//public class GetModifierMappingReply {
-	//}
+	[Compact]
+	[CCode (cname = "xcb_get_modifier_mapping_reply_t", ref_function = "", unref_function = "free")]
+	public class GetModifierMappingReply {
+		public uint8 response_type;
+		public uint8 keycodes_per_modifier;
+		public uint16 sequence;
+		public uint32 length;
+		public uint8  pad0[24];
+	}
 
 	[SimpleType]
 	[IntegerType (rank = 9)]

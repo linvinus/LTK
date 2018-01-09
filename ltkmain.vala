@@ -42,6 +42,13 @@ extern void cairo_xcb_surface_set_drawable(Cairo.XcbSurface s,uint32 d,int width
 
 namespace Ltk{
 
+  public struct  KeyMasks {
+    uint16 numlock;
+    uint16 shiftlock;
+    uint16 capslock;
+    uint16 modeswitch;
+  }
+
   /*[SimpleType]*/
   [CCode (has_type_id = false)]
   struct atom_names{
@@ -77,7 +84,8 @@ namespace Ltk{
     private static unowned XcbWindow grab_pointer_author;
     private static Xcb.Window grab_window_remap[2];
     public static Cairo.FontFace Font;
-    public static Xcb.KeySymbols? syms = null;
+    public static Xcb.KeySymbols? keysyms = null;
+    public static KeyMasks key_masks;
 
     private static void null_handler(string? domain, LogLevelFlags flags, string message) {
           }
@@ -128,7 +136,8 @@ namespace Ltk{
       var s_iterator = Global.setup.roots_iterator();
       Global.screen = s_iterator.data;
 
-      Global.syms = Global.C.key_symbols_alloc();
+      Global.keysyms = Global.C.key_symbols_alloc();
+      Global.keymap_init();
 
 //~       Xcb.AtomT tmp_atom;
       if(!Global.atoms.contains(atom_names.wm_delete_window))
@@ -296,8 +305,8 @@ namespace Ltk{
                  }
               break;
               case Xcb.MAPPING_NOTIFY:
-				  Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
-				  Xcb.refresh_keyboard_mapping(Global.syms, e);
+                Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
+                Xcb.refresh_keyboard_mapping(Global.keysyms, e);
               break;
              }
            Global.C.flush();
@@ -352,5 +361,147 @@ namespace Ltk{
     public static void quit(){
 		loop.quit ();
 	}
+
+  private static uint16 _xcb_keymap_mask_get(Xcb.GetModifierMappingReply reply, Xcb.KeySym   sym){
+   uint16 mask = 0;
+   const Xcb.ModMask masks[8] =
+   {
+      Xcb.ModMask.SHIFT, Xcb.ModMask.LOCK, Xcb.ModMask.CONTROL,
+      Xcb.ModMask.@1, Xcb.ModMask.@2, Xcb.ModMask.@3, Xcb.ModMask.@4,
+      Xcb.ModMask.@5
+   };
+
+   if ((reply != null) && (reply.keycodes_per_modifier > 0))
+     {
+        int i = 0;
+        unowned Xcb.Keycode[] modmap;
+        Xcb.KeySym   sym2 = 0;
+
+        modmap = Xcb.get_modifier_mapping_keycodes(reply);
+        for (i = 0; i < (8 * reply.keycodes_per_modifier); i++)
+          {
+             int j = 0;
+
+             for (j = 0; j < 8; j++)
+               {
+                  sym2 =
+                    Xcb.key_symbols_get_keysym(Global.keysyms,
+                                               modmap[i], j);
+                  if (sym2 != 0) break;
+               }
+             if (sym2 == sym)
+               {
+                  mask = masks[i / reply.keycodes_per_modifier];
+                  break;
+               }
+          }
+     }
+
+   return mask;
+  }
+
+  public static void keymap_init(){
+    var reply = Global.C.get_modifier_mapping_reply(Global.C.get_modifier_mapping_unchecked());
+    if(reply != null){
+       Global.key_masks.modeswitch = _xcb_keymap_mask_get(reply, Xkb.Key.Mode_switch);
+       Global.key_masks.shiftlock = _xcb_keymap_mask_get(reply, Xkb.Key.Shift_Lock);
+       Global.key_masks.capslock = _xcb_keymap_mask_get(reply, Xkb.Key.Caps_Lock);
+       Global.key_masks.numlock = _xcb_keymap_mask_get(reply, Xkb.Key.Num_Lock);
+    }
+  }
+
+  public static Xcb.KeySym	key_getkeysym(Xcb.Keycode detail, uint16 state){
+      Xcb.KeySym k0, k1;
+
+      /* 'col'  (third  parameter)  is  used  to  get  the  proper  KeySym
+       * according  to  modifier (XCB  doesn't  provide  an equivalent  to
+       * XLookupString()).
+       *
+       * If Mode_Switch is ON we look into second group.
+       */
+      if( (state & Global.key_masks.modeswitch) > 0)
+      {
+        k0 = Xcb.key_symbols_get_keysym(Global.keysyms, detail, 2);
+        k1 = Xcb.key_symbols_get_keysym(Global.keysyms, detail, 3);
+      }
+      else
+      {
+        k0 = Xcb.key_symbols_get_keysym(Global.keysyms, detail, 0);
+        k1 = Xcb.key_symbols_get_keysym(Global.keysyms, detail, 1);
+      }
+
+      /* If the second column does not exists use the first one. */
+      if(k1 == Xcb.NO_SYMBOL)
+        k1 = k0;
+
+      if ((state & Global.key_masks.numlock)>0 &&
+         ((Xcb.is_keypad_key(k1)) || (Xcb.is_private_keypad_key(k1))))
+       {
+          if ((state & Xcb.ModMask.SHIFT)>0 ||
+              ((state & Xcb.ModMask.LOCK)>0 && (state & Global.key_masks.shiftlock)>0))
+            return k0;
+          else
+            return k1;
+       }
+      else if ((state & Xcb.ModMask.SHIFT)==0 && (state & Xcb.ModMask.LOCK)==0)
+       return k0;
+      else if ((state & Xcb.ModMask.SHIFT)==0 &&
+              ((state & Xcb.ModMask.LOCK)>0 && (state & Global.key_masks.capslock)>0))
+       return k1;
+      else if ((state & Xcb.ModMask.SHIFT)>0 &&
+              (state & Xcb.ModMask.LOCK)>0 && (state & Global.key_masks.capslock)>0)
+       return k0;
+      else if ((state & Xcb.ModMask.SHIFT)>0 ||
+              ((state & Xcb.ModMask.LOCK)>0 && (state & Global.key_masks.shiftlock)>0))
+       return k1;
+
+      return Xcb.NO_SYMBOL;
+      /* The  numlock modifier is  on and  the second  KeySym is  a keypad
+       * KeySym */
+      if( ((state & Global.key_masks.numlock)> 0) && Xcb.is_keypad_key(k1))
+      {
+        debug("state=%u numlock=%u",state , Global.key_masks.numlock);
+        /* The Shift modifier  is on, or if the Lock  modifier is on and
+         * is interpreted as ShiftLock, use the first KeySym */
+        if((state & Xcb.ModMask.SHIFT)>0 ||
+          ((state & Xcb.ModMask.LOCK)>0 &&
+          ((state & Global.key_masks.shiftlock)>0) )){
+          return k0;
+        }else{
+          return k1;
+        }
+      }
+
+      /* The Shift and Lock modifers are both off, use the first KeySym */
+      else if( ((state & Xcb.ModMask.SHIFT) == 0) && ((state & Xcb.ModMask.LOCK) == 0))
+      return k0;
+
+      /* The Shift  modifier is  off and  the Lock modifier  is on  and is
+       * interpreted as CapsLock */
+      else if( ((state & Xcb.ModMask.SHIFT) == 0) &&
+        ( ((state & Xcb.ModMask.LOCK) >0) && ((state & Global.key_masks.capslock)) >0 ))
+      /* The  first Keysym  is  used  but if  that  KeySym is  lowercase
+       * alphabetic,  then the  corresponding uppercase  KeySym  is used
+       * instead */
+      return k1;
+
+      /* The Shift modifier is on, and the Lock modifier is on and is
+       * interpreted as CapsLock */
+      else if( ((state & Xcb.ModMask.SHIFT) >0) &&
+        ( ( (state & Xcb.ModMask.LOCK) > 0) && ((state & Global.key_masks.capslock)>0) ) )
+      /* The  second Keysym  is used  but  if that  KeySym is  lowercase
+       * alphabetic,  then the  corresponding uppercase  KeySym  is used
+       * instead */
+      return k1;
+
+      /* The  Shift modifer  is on,  or  the Lock  modifier is  on and  is
+       * interpreted as ShiftLock, or both */
+      else if( ( (state & Xcb.ModMask.SHIFT) > 0) ||
+        ( ((state & Xcb.ModMask.LOCK)>0) && ((state & Global.key_masks.shiftlock) >0 ) ))
+      return k1;
+
+      return Xcb.NO_SYMBOL;
+    }//key_getkeysym
+
   }//struct Global
 }//namespace Ltk

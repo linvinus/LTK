@@ -377,12 +377,12 @@ namespace Ltk{
             break;
             case Xcb.KEY_PRESS:
                Xcb.KeyPressEvent e = (Xcb.KeyPressEvent)event;
-               uint32 k = Xcb.key_symbols_get_keysym(Global.syms,e.detail,0);
+               uint32 k = Global.key_getkeysym(e.detail, e.state);
                this.on_key_press(k, (uint) e.state);
             break;
             case Xcb.KEY_RELEASE:
                Xcb.KeyReleaseEvent e = (Xcb.KeyReleaseEvent)event;
-               uint32 k = Xcb.key_symbols_get_keysym(Global.syms,e.detail,0);
+               uint32 k = Global.key_getkeysym(e.detail, e.state);
                this.on_key_release(k, (uint) e.state);
             break;
             case Xcb.BUTTON_PRESS:
