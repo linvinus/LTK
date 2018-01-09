@@ -21,7 +21,7 @@ namespace Ltk{
   public class Button: Widget{
     public string? label = null;
     private uint8 color=128;
-    private bool _focused = false;
+
     public Button(string? label = null){
       base();
       this.label = label;
@@ -71,11 +71,11 @@ namespace Ltk{
 //~       cr.paint();
       return true;//continue
     }//draw
-    public override void on_button_press(uint button,uint x, uint y){
+    public void on_button_press(uint button,uint x, uint y){
       this.state |= WidgetState.activated;
       this.damaged = true;//redraw button with new state
     }
-    public override void on_button_release(uint button,uint x, uint y){
+    public void on_button_release(uint button,uint x, uint y){
       this.state &= ~WidgetState.activated;
       this.damaged = true;//redraw button with new state
       this.on_click();
@@ -86,7 +86,6 @@ namespace Ltk{
 
     //set input focus
     public override bool set_focus(bool focus){
-      this._focused = focus;
       if(!focus && (this.state & WidgetState.focused) >0 ){
         this.state  &= ~WidgetState.focused;
         this.damaged = true;
@@ -94,13 +93,9 @@ namespace Ltk{
         this.state  |= WidgetState.focused;
         this.damaged = true;
       }
-      return this._focused;
+      return base.set_focus(focus);
     }//set_focus
 
-    //is widget focused?
-    public override bool get_focus(){
-      return this._focused;
-    }//get_focus
     public signal void on_click();
   }//class Button
 

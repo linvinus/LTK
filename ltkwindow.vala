@@ -236,21 +236,27 @@ namespace Ltk{
           }
 
          if(this.focused_widget != w){
-           if(this.focused_widget != null && this.focused_widget is Widget){
-             this.focused_widget.set_focus(false);
-             this.focused_widget = null;
-           }
-           if(w != null && w.set_focus(true)){
-             this.focused_widget = w;
-           }else{
-             this.focused_widget = null;
-           }
-           debug("window on_button_press widget=%p",this.focused_widget);
-        }
+           this.grab_focus(w);
+         }
     }//on_button_press
     
     public weak XcbWindow get_xcb_window(){
       return this.window;
+    }
+
+    public void grab_focus(Widget? w){
+       if(this.focused_widget != null &&
+          this.focused_widget is Widget &&
+          this.focused_widget != w){
+         this.focused_widget.set_focus(false);
+         this.focused_widget = null;
+       }
+       if(w != null && w.set_focus(true)){
+         this.focused_widget = w;
+       }else{
+         this.focused_widget = null;
+       }
+       debug("window grab_focus widget=%p",this.focused_widget);
     }
 
   }//class Window

@@ -415,14 +415,26 @@ namespace Ltk{
 //~       GLib.Signal.emit_by_name(((Widget)this),"damage2",null,this.A.x,this.A.y,this.A.width,this.A.height);
     }
 
+    private bool _focused = false;
     //set input focus
     public virtual bool set_focus(bool focus){
-      return false;
+
+      if(focus && !this._focused){
+        this._focused = focus;
+        var win = this.get_top_window();
+        debug("set_focus=%p",win);
+        if(win != null){
+          win.grab_focus(this);
+        }
+      }else
+        this._focused = focus;
+
+      return this._focused;
     }//set_focus
 
     //is widget focused?
     public virtual bool get_focus(){
-      return false;
+      return this._focused;
     }//get_focus
 
     public virtual void allocation_changed(){

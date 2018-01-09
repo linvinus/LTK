@@ -396,6 +396,16 @@ namespace Ltk{
         return _ret;
       }//draw
 
+    //container can't have focus
+    public override bool set_focus(bool focus){
+      return false;
+    }//set_focus
+
+    public override bool get_focus(){
+      return false;
+    }//get_focus
+
+
   }//class container
 
 }//namespace Ltk
