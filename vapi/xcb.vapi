@@ -1728,7 +1728,10 @@ namespace Xcb {
 	[Compact]
 	[CCode (cname = "xcb_button_press_event_t", ref_function = "", unref_function = "")]
 	public class ButtonPressEvent : GenericEvent {
+		public uint8 response_type;
 		public Button detail;
+		public uint16 sequence;
+		public Timestamp time; 
 		public Window root;
 		public Window event;
 		public Window child;
@@ -1736,12 +1739,18 @@ namespace Xcb {
 		public uint16 root_y;
 		public uint16 event_x;
 		public uint16 event_y;
+		public uint16 state;
+		public uint8 same_screen;
+		uint8 pad0; 
 	}
 
 	[Compact]
 	[CCode (cname = "xcb_button_release_event_t", ref_function = "", unref_function = "")]
 	public class ButtonReleaseEvent : GenericEvent {
+		public uint8 response_type;
 		public Button detail;
+		public uint16 sequence;
+		public Timestamp time; 
 		public Window root;
 		public Window event;
 		public Window child;
@@ -1749,6 +1758,9 @@ namespace Xcb {
 		public uint16 root_y;
 		public uint16 event_x;
 		public uint16 event_y;
+		public uint16 state;
+		public uint8 same_screen;
+		uint8 pad0; 
 	}
 
 	[Compact]

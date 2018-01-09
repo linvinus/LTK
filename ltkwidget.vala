@@ -469,9 +469,9 @@ namespace Ltk{
     [Signal (run="first")]
     public virtual signal void on_key_release(uint keycode, uint state){}
     [Signal (run="first")]
-    public virtual signal void on_button_press(uint button,uint x, uint y){}
+    public virtual signal void on_button_press(uint button, uint state,uint x, uint y){}
     [Signal (run="first")]
-    public virtual signal void on_button_release(uint button,uint x, uint y){}
+    public virtual signal void on_button_release(uint button, uint state,uint x, uint y){}
 
   }//class Widget
   /********************************************************************/

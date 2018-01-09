@@ -61,22 +61,22 @@ namespace Ltk{
       this.window.on_key_release.connect((keycode, state) => {this.on_key_press(keycode, state);});
 
       //firstly send to child, so child can cancel event
-      this.window.on_button_press.connect((button, x, y)=>{
+      this.window.on_button_press.connect((button, state, x, y)=>{
           Widget? w = this.find_mouse_child(this,x,y);
           debug("window on_button_press2 %u xy=%u,%u w=%p",button, x, y,w);
           if(w != null){
             this.button_press_widget[button % 25] = w;//remember latest widget
-            w.on_button_press(button, x, y);
+            w.on_button_press(button,state, x, y);
           }
         });
       this.window.on_button_press.connect(_on_button_press);
 
       //firstly send to child, so child can cancel event
-      this.window.on_button_release.connect((button, x, y)=>{
+      this.window.on_button_release.connect((button, state, x, y)=>{
           Widget? w = this.button_press_widget[button];//release event could be outside our window, so use remembered widget
           debug("window on_button_release2 %u xy=%u,%u w=%p",button, x, y,w);
           if(w != null){
-            w.on_button_release(button, x, y);
+            w.on_button_release(button,state, x, y);
             this.button_press_widget[button % 25] = null;//done
           }
       });
@@ -224,7 +224,7 @@ namespace Ltk{
 //~     public override void on_button_press(uint detail,uint x, uint y){
 
     //set focus for child widget
-    private void _on_button_press(uint button,uint x, uint y){
+    private void _on_button_press(uint button,uint state,uint x, uint y){
         debug("window on_button_press %u xy=%u,%u",button, x, y);
           Widget? w = this.focused_widget;
           if( w == null ||

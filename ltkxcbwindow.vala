@@ -387,11 +387,11 @@ namespace Ltk{
             break;
             case Xcb.BUTTON_PRESS:
                Xcb.ButtonPressEvent e = (Xcb.ButtonPressEvent)event;
-               this.on_button_press((uint)e.detail, (uint) e.event_x, (uint) e.event_y);
+               this.on_button_press((uint)e.detail,e.state, (uint) e.event_x, (uint) e.event_y);
             break;
             case Xcb.BUTTON_RELEASE:
                Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
-               this.on_button_release((uint)e.detail, (uint) e.event_x, (uint) e.event_y);
+               this.on_button_release((uint)e.detail,e.state, (uint) e.event_x, (uint) e.event_y);
             break;
           }//switch
   //~         free(event);
@@ -565,8 +565,8 @@ namespace Ltk{
     public signal void on_mouse_move(uint x, uint y);
     public signal void on_mouse_enter(uint x, uint y);
     public signal void on_mouse_leave(uint x, uint y);
-    public signal void on_button_press(uint button,uint x, uint y);
-    public signal void on_button_release(uint detail,uint x, uint y);
+    public signal void on_button_press(uint button, uint state, uint x, uint y);
+    public signal void on_button_release(uint detail, uint state, uint x, uint y);
     public signal void on_key_press(uint keycode, uint state);
     public signal void on_key_release(uint keycode, uint state);
     [Signal (run="last",detailed=false)]

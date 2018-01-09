@@ -69,11 +69,11 @@ namespace Ltk{
 //~       cr.paint();
       return true;//continue
     }//draw
-    public override void on_button_press(uint button,uint x, uint y){
+    public override void on_button_press(uint button,uint state,uint x, uint y){
       this.state |= WidgetState.activated;
       this.damaged = true;//redraw button with new state
     }
-    public override void on_button_release(uint button,uint x, uint y){
+    public override void on_button_release(uint button,uint state,uint x, uint y){
       this.state &= ~WidgetState.activated;
       this.damaged = true;//redraw button with new state
       this.on_click();

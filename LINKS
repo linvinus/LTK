@@ -12,6 +12,9 @@ https://cgit.freedesktop.org/xcb/util-wm/tree/
 https://tronche.com/gui/x/icccm/sec-4.html
 https://github.com/enn/xcb-examples/blob/master/line_drawing.c
 https://github.com/ehntoo/unagi/blob/master/src/key.c
+#A bunch of XCB examples
+https://github.com/etale-cohomology/xcb
+https://www.google.ru/url?sa=t&rct=j&q=&esrc=s&source=web&cd=2&ved=0ahUKEwj_pPqVuMvYAhUqS5oKHeEKCPQQFggwMAE&url=https%3A%2F%2Fgit.enlightenment.org%2Fcore%2Fefl.git%2Fplain%2Fsrc%2Flib%2Fecore_x%2Fxcb%2Fecore_xcb_keymap.c%3Fh%3Ddevs%2Fcedric%2Fjob%26id%3Dfa8f786d44022aaa07a00c6517d6c69d86e1b787&usg=AOvVaw0X6qnD9shMf_R7uWgb236i
 
 DRAW
 https://cairographics.org/tutorial/
