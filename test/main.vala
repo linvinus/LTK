@@ -49,21 +49,21 @@ int main (string[] argv) {
     container.add(button);
     bool tick = false;
     GLib.SourceFunc ontime = ()=>{
-      debug("GLib.Timeout\n");
+      ltkdebug("GLib.Timeout\n");
 //~       button.label += ""
       if(!tick){
         button2.min_width += 100;
       }else{
         button2.min_width -= 100;
       }
-      debug("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
+      ltkdebug("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
       Ltk.Container c = (Ltk.Container)button.parent;
 //~       uint oldw = c.width;
 //~       uint oldh = c.height;
 //~       c.calculate_size(ref oldw,ref oldh);
 //~       c.size_request(oldw, oldh);
 //~       window.update_childs_sizes();
-      debug("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
+      ltkdebug("***    fill_mask=%u place_policy=%u A.options=%u label=%s\n", button2.fill_mask, button2.place_policy, button2.A.options, button2.label);
 //~       window.damage(0,0,window.A.width,window.A.height);
 
       tick = !tick;
@@ -85,7 +85,7 @@ int main (string[] argv) {
 //~     button.height=200;
 //~     button.width=200;
     button4.on_click.connect(()=>{
-			debug("__________ button4.on_click");
+			ltkdebug("__________ button4.on_click");
 		    var dialog = new Ltk.Dialog(win_parent);
 			dialog.place_policy = Ltk.SOptions.place_horizontal;
 			dialog.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
@@ -102,7 +102,7 @@ int main (string[] argv) {
     container2.add(button3);
     
     button3.on_click.connect(()=>{
-			debug("__________ button3.on_click");
+			ltkdebug("__________ button3.on_click");
 //~ 		    var dialog = new Ltk.Dialog(win_parent);
 		    var dialog = new Ltk.PopupMenu(win_parent);
 			dialog.place_policy = Ltk.SOptions.place_horizontal;
