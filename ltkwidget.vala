@@ -249,10 +249,24 @@ namespace Ltk{
   }//class WidgetList
   /********************************************************************/
 
-  public class Widget : GLib.Object{
+  public abstract class Widget : GLib.Object{
     public weak Container? parent = null;
     public WidgetList childs;
     public bool have_background = true;
+    //widget name, used for styling
+    private string? _name = null;
+    public string name{
+      get{
+        if(_name != null){
+          return _name;
+        }else{
+          return this.get_class().get_name();
+        }
+      }
+      set{
+        _name = value;
+      }
+      }
     private uint _min_width;
     public uint min_width{
       get{ return  this._min_width;}

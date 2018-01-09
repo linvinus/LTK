@@ -148,7 +148,7 @@ namespace Ltk{
           _h = w.get_prefered_height();
           height_min = uint.max(height_min, _h);
           height_max = (this.place_policy == SOptions.place_vertical ? height_max + _h : height_min);
-          debug( "get_height_for_width1 min=%u max=%u %s",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+//~           debug( "get_height_for_width1 min=%u max=%u %s",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_height_serial = this.size_changed_serial;
       }else{
@@ -165,7 +165,7 @@ namespace Ltk{
           _w = w.get_prefered_width();
           width_min = uint.max( width_min, _w );
           width_max = (this.place_policy == SOptions.place_horizontal ? width_max + _w : width_min);
-          debug( "get_width_for_height1 min=%u max=%u %s",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+//~           debug( "get_width_for_height1 min=%u max=%u %s",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_width_serial = this.size_changed_serial;
       }else{

@@ -47,8 +47,6 @@ namespace Ltk{
       engine.padding.bottom = 0;
       engine.padding.left = 0;
       engine.padding.right = 0;
-      this.on_mouse_enter.connect(this.damage_on_mouse_event);
-      this.on_mouse_leave.connect(this.damage_on_mouse_event);
     }
     public override bool draw(Cairo.Context cr){
       debug( "Button draw %s",this.get_class().get_name());
@@ -71,19 +69,25 @@ namespace Ltk{
 //~       cr.paint();
       return true;//continue
     }//draw
-    public void on_button_press(uint button,uint x, uint y){
+    public override void on_button_press(uint button,uint x, uint y){
       this.state |= WidgetState.activated;
       this.damaged = true;//redraw button with new state
     }
-    public void on_button_release(uint button,uint x, uint y){
+    public override void on_button_release(uint button,uint x, uint y){
       this.state &= ~WidgetState.activated;
       this.damaged = true;//redraw button with new state
       this.on_click();
     }
-    private void damage_on_mouse_event(uint x,uint y){
+
+    public override void on_mouse_enter(uint x, uint y){
+      base.on_mouse_enter(x,y);
       this.damaged = true;//redraw button with new state
     }
 
+    public override void on_mouse_leave(uint x, uint y){
+      base.on_mouse_leave(x,y);
+      this.damaged = true;//redraw button with new state
+    }
     //set input focus
     public override bool set_focus(bool focus){
       if(!focus && (this.state & WidgetState.focused) >0 ){
