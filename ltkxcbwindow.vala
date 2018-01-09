@@ -160,7 +160,7 @@ namespace Ltk{
       //WM_CLIENT_MACHINE
       uint8  machine_name[1024];
       if(Posix.gethostname((char[])machine_name) == 0){
-        debug("XcbWindow machine_name=%s length=%d",(string)machine_name,((string)machine_name).length);
+        ltkdebug("XcbWindow machine_name=%s length=%d",(string)machine_name,((string)machine_name).length);
 //~         Global.I.set_wm_client_machine(this.window,Global.atoms.lookup(atom_names._string),8,((string)machine_name).length,(string)machine_name);
       Global.C.change_property_uint8 ( Xcb.PropMode.REPLACE,
                            this.window,
@@ -178,7 +178,7 @@ namespace Ltk{
     }//XcbWindow
 
     ~XcbWindow(){
-      debug("~XcbWindow fd=%u",Global.C.get_file_descriptor());
+      ltkdebug("~XcbWindow fd=%u",Global.C.get_file_descriptor());
       this.surface.finish();//When the last call to cairo_surface_destroy() decreases the reference count to zero, cairo will call cairo_surface_finish()
 
       Global.C.free_gc(this.pixmap_gc);
@@ -189,7 +189,7 @@ namespace Ltk{
       
       if(Global.windows.lookup(this.window)!=null){
         Global.windows.remove(this.window);
-        debug("~XcbWindow %u",this.window);
+        ltkdebug("~XcbWindow %u",this.window);
       }
 
       do{
@@ -279,7 +279,7 @@ namespace Ltk{
     public void on_configure(Xcb.ConfigureNotifyEvent e){
 
   //~     var geom = Global.C.get_geometry_reply(Global.C.get_geometry_unchecked(e.window), null);
-  //~     debug( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d",
+  //~     ltkdebug( "on_map x,y=%d,%d w,h=%d,%d response_type=%d ew=%d, w=%d",
   //~                       (int)e.x,
   //~                       (int)e.y,
   //~                       (int)e.width,
@@ -288,7 +288,7 @@ namespace Ltk{
   //~                       (int)e.event,
   //~                       (int)e.window
   //~                       );
-      debug( "on_configure w=%u h=%u ", this.min_width,this.min_height);
+      ltkdebug( "on_configure w=%u h=%u ", this.min_width,this.min_height);
       if( (e.width == 1 && e.height == 1) && (this.min_width != 1 && this.min_height != 1))
         return;//skip first map
 
@@ -303,7 +303,7 @@ namespace Ltk{
         uint _h = this.min_height;
         this.size_changed(_w,_h);
       }
-      debug( "on_configure2 w=%u h=%u ", this.min_width,this.min_height);
+      ltkdebug( "on_configure2 w=%u h=%u ", this.min_width,this.min_height);
 
       /*
        * there is no way to resize X11 pixmap,
@@ -317,17 +317,17 @@ namespace Ltk{
 
 //~         this.surface.set_drawable(this.pixmap,(int)this.min_width,(int)this.min_height);
         cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.min_width,(int)this.min_height);
-  //~     debug( "on_map x,y=%d,%d w,h=%d,%d",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
+  //~     ltkdebug( "on_map x,y=%d,%d w,h=%d,%d",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
       this.queue_draw();
     }
 
     public bool process_event(Xcb.GenericEvent event){
       bool _continue = true;
 
-  //~     debug( "!!!!!!!!!!!event");
+  //~     ltkdebug( "!!!!!!!!!!!event");
   //~     while (( (event = Global.C.wait_for_event()) != null ) && !finished ) {
 //~       while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
-  //~       debug( "event=%d expose=%d map=%d",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
+  //~       ltkdebug( "event=%d expose=%d map=%d",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
           switch (event.response_type & ~0x80) {
             case Xcb.EXPOSE:
                 /* Avoid extra redraws by checking if this is
@@ -336,17 +336,17 @@ namespace Ltk{
                  Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
                 if (e.count != 0)
                     break;
-//~                 debug( "!!!!!!!!!!!event xy=%u,%u %ux%u count=%u",e.x, e.y, e.width, e.height,e.count);
+//~                 ltkdebug( "!!!!!!!!!!!event xy=%u,%u %ux%u count=%u",e.x, e.y, e.width, e.height,e.count);
                 this.damage(e.x, e.y, e.width, e.height);
             break;
             case Xcb.CLIENT_MESSAGE:
                 Xcb.ClientMessageEvent e = (Xcb.ClientMessageEvent)event;
-                debug( "CLIENT_MESSAGE data32=%d name=%s deleteWindowAtom=%d", (int)e.data.data32[0],Global.C.get_atom_name_reply(Global.C.get_atom_name(e.data.data32[0])).name,(int)Global.net_wm_ping_atom);
+                ltkdebug( "CLIENT_MESSAGE data32=%d name=%s deleteWindowAtom=%d", (int)e.data.data32[0],Global.C.get_atom_name_reply(Global.C.get_atom_name(e.data.data32[0])).name,(int)Global.net_wm_ping_atom);
                 if(e.type == Global.atoms.lookup(atom_names.wm_protocols)){
                   if(e.data.data32[0] == Global.atoms.lookup(atom_names.wm_take_focus)){
                       this.on_focus();
                   }else if(e.data.data32[0] == Global.net_wm_ping_atom){
-                     debug("Global.net_wm_ping_atom");
+                     ltkdebug("Global.net_wm_ping_atom");
                      e.window = Global.screen.root;
                      Global.C.send_event(false,0,0,e);//PONG, XCB_SEND_EVENT_DEST_POINTER_WINDOW == 0
                   }else if(e.data.data32[0] == Global.deleteWindowAtom){
@@ -409,7 +409,7 @@ namespace Ltk{
       if(y > this.min_height ) y = this.min_height;
       if((x + width) > this.min_width ) width = this.min_width - x;
       if((y + height) > this.min_height ) height = this.min_height - y;
-      debug( "XCB **** draw_area xy=%u,%u wh=%u,%u",x, y, width, height);
+      ltkdebug( "XCB **** draw_area xy=%u,%u wh=%u,%u",x, y, width, height);
       cr.save();
       cr.set_font_face(Global.Font);//use default font,avoid call cairo_scaled_font_create,and using libfontconfig, reduce RSS my 1MB
       cr.set_font_size (12);        //default size
@@ -428,16 +428,16 @@ namespace Ltk{
                          (int16)width,
                          (int16)height);
       Global.C.flush();
-      debug( "XCB **** end");
+      ltkdebug( "XCB **** end");
     }//clear_area
 
     public void damage(uint x,uint y,uint width,uint height){
-      debug( "XCB **** damage");
+      ltkdebug( "XCB **** damage");
       this.damage_region.x = uint.min(this.damage_region.x, x);
       this.damage_region.y = uint.min(this.damage_region.y, y);
       this.damage_region.width = uint.max(this.damage_region.width, x+width);//x2
       this.damage_region.height = uint.max(this.damage_region.height, y+height);//y2
-      debug( "XCB **** damage xy=%u,%u wh=%u,%u",
+      ltkdebug( "XCB **** damage xy=%u,%u wh=%u,%u",
       this.damage_region.x,
       this.damage_region.y,
       this.damage_region.width,
@@ -575,7 +575,7 @@ namespace Ltk{
     public signal void on_key_release(uint keycode, uint state);
     [Signal (run="last",detailed=false)]
     public virtual signal bool on_quit(){
-      debug("Xcbwindow.on_quit");
+      ltkdebug("Xcbwindow.on_quit");
       //https://mail.gnome.org/archives/vala-list/2011-October/msg00103.html
       return true;//default is to quit if no other handlers connected with connect_after;
     }

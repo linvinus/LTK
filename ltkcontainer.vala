@@ -45,7 +45,7 @@ namespace Ltk{
           src.A.height = src.min_height;
         }
 
-        debug("diff_width=%d diff_height=%d",diff_width,diff_height);
+        ltkdebug("diff_width=%d diff_height=%d",diff_width,diff_height);
 
         if(diff_height != 0 || diff_width != 0){
             this.update_childs_sizes();
@@ -79,7 +79,7 @@ namespace Ltk{
     }//update_childs_sizes
 
     public void update_childs_position(){
-      debug("@@@ update_childs_position xy=%u,%u count=%u",this.A.x,this.A.y, this.childs.count);
+      ltkdebug("@@@ update_childs_position xy=%u,%u count=%u",this.A.x,this.A.y, this.childs.count);
 
       //calculate position
       uint _x = this.A.x, _y = this.A.y, _w = 0, _h = 0;
@@ -148,13 +148,13 @@ namespace Ltk{
           _h = w.get_prefered_height();
           height_min = uint.max(height_min, _h);
           height_max = (this.place_policy == SOptions.place_vertical ? height_max + _h : height_min);
-//~           debug( "get_height_for_width1 min=%u max=%u %s",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+//~           ltkdebug( "get_height_for_width1 min=%u max=%u %s",_h,height_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_height_serial = this.size_changed_serial;
       }else{
         height_min = this.min_height;
         height_max = height_min;//uint.max(this.A.height,height_min);
-        debug( "get_height_for_width2 min=%u max=%u ",height_min,height_max );
+        ltkdebug( "get_height_for_width2 min=%u max=%u ",height_min,height_max );
       }
     }//get_height_for_width
 
@@ -165,18 +165,18 @@ namespace Ltk{
           _w = w.get_prefered_width();
           width_min = uint.max( width_min, _w );
           width_max = (this.place_policy == SOptions.place_horizontal ? width_max + _w : width_min);
-//~           debug( "get_width_for_height1 min=%u max=%u %s",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
+//~           ltkdebug( "get_width_for_height1 min=%u max=%u %s",_w,width_max, ( (w is Button ) ? "label="+((Button)w).label: "") );
         }
         this.size_update_width_serial = this.size_changed_serial;
       }else{
         width_min = this.min_width;
         width_max = width_min;//uint.max(this.A.width,width_min);
       }
-      debug( "get_width_for_height2 min=%u max=%u",width_min,width_max);
+      ltkdebug( "get_width_for_height2 min=%u max=%u",width_min,width_max);
     }//get_width_for_height
 
     public virtual void calculate_size(ref uint calc_width,ref uint calc_height, Widget calc_initiator){
-      debug( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
+      ltkdebug( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
 
       if(this._calculating_size)
         return;
@@ -189,16 +189,16 @@ namespace Ltk{
          this.A.width >= this.min_width &&
          this.A.height >= this.min_height ){
             this._calculating_size=false;
-            debug( "container quick end. calculate_size w=%u h=%u loop=%d childs=%u", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
+            ltkdebug( "container quick end. calculate_size w=%u h=%u loop=%d childs=%u", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count);
             return;
       }
       this._calculating_size=true;
 
       this.size_update_childs = this.size_changed_serial;
 
-        debug( "container this.fill_mask=%d",this.fill_mask );
-        debug( "container calc_width=%u wmax=%u",calc_width , this.min_width );
-        debug( "container calc_height=%u hmax=%u",calc_height , this.min_height );
+        ltkdebug( "container this.fill_mask=%d",this.fill_mask );
+        ltkdebug( "container calc_width=%u wmax=%u",calc_width , this.min_width );
+        ltkdebug( "container calc_height=%u hmax=%u",calc_height , this.min_height );
 
         //just to be shure
         if(calc_width < this.min_width)  { calc_width  = this.min_width; }
@@ -207,18 +207,18 @@ namespace Ltk{
           if( calc_width != this.A.width || calc_height != this.A.height ){
             this.damaged=true;
           }
-          debug("container damaged=%u calc=%u,%u A=%u,%u",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
+          ltkdebug("container damaged=%u calc=%u,%u A=%u,%u",(uint)this.damaged,calc_width,calc_height,this.A.width,this.A.height);
 
           this.A.width = calc_width;//apply new allocation
           this.A.height = calc_height;
 
         if(this.place_policy == Ltk.SOptions.place_horizontal){
-          debug("container SOptions.place_horizontal min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
+          ltkdebug("container SOptions.place_horizontal min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
 
           uint extra_width_delta = this.A.width;
 
-          debug("container childs.length=%u ",this.childs.count);
+          ltkdebug("container childs.length=%u ",this.childs.count);
 
           if(extra_width_delta > this.min_width){
             extra_width_delta -= this.childs.fixed_width;
@@ -229,7 +229,7 @@ namespace Ltk{
             extra_width_delta = 0;
           }
 
-          debug("container w=%u extra_width_delta=%u",this.A.width, extra_width_delta);
+          ltkdebug("container w=%u extra_width_delta=%u",this.A.width, extra_width_delta);
 
           //_variable_width is sorted,first bigger then smaller
           foreach(var w in this.childs.variable_width()){
@@ -263,7 +263,7 @@ namespace Ltk{
             }else{
               new_height = w.min_height;
             }
-            debug("container A w=%u h=%u",new_width,new_height);
+            ltkdebug("container A w=%u h=%u",new_width,new_height);
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
             }
@@ -282,11 +282,11 @@ namespace Ltk{
 
           }//foreach childs
         }else{//SOptions.place_vertical
-          debug("container SOptions.place_vertical min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
+          ltkdebug("container SOptions.place_vertical min=%u,%u A=%u,%u",this.min_width,this.min_height,this.A.width,this.A.height);
           //set sizes for childs
           uint extra_height_delta = this.A.height;
 
-          debug("container childs.length=%u ",this.childs.count);
+          ltkdebug("container childs.length=%u ",this.childs.count);
 
           if(extra_height_delta > this.min_height){
             extra_height_delta -= this.childs.fixed_height;
@@ -297,7 +297,7 @@ namespace Ltk{
             extra_height_delta = 0;
           }
 
-          debug("container h=%u extra_height_delta=%u",this.A.height, extra_height_delta);
+          ltkdebug("container h=%u extra_height_delta=%u",this.A.height, extra_height_delta);
 
 
           //_variable_height is sorted,first bigger then smaller
@@ -334,7 +334,7 @@ namespace Ltk{
               new_width = w.get_prefered_width();
             }
 
-            debug("container A w=%u h=%u",w.A.width,w.A.height);
+            ltkdebug("container A w=%u h=%u",w.A.width,w.A.height);
 
             if( new_width != w.A.width || new_height != w.A.height ){
               w.damaged=true;
@@ -352,13 +352,13 @@ namespace Ltk{
             w.A.options |= w.fill_mask;
           }//foreach childs
         }//SOptions.place_vertical
-      debug( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
+      ltkdebug( "container end calculate_size w=%u h=%u loop=%d childs=%u damage=%u", this.min_width,this.min_height,(int)this._calculating_size,this.childs.count,(uint)this.damaged);
       this._calculating_size=false;
     }//calculate_size
 
     public override bool draw(Cairo.Context cr){
         var _ret = base.draw(cr);//widget
-        debug( "container x,y=%u,%u w,h=%u,%u childs=%u",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
+        ltkdebug( "container x,y=%u,%u w,h=%u,%u childs=%u",this.A.x, this.A.y, this.A.width, this.A.height, this.childs.count);
 
         double dx=0,dy=0;
 
@@ -383,7 +383,7 @@ namespace Ltk{
               dx=w.A.x;
               dy=w.A.y;
               cr.device_to_user(ref dx,ref dy);
-//~               debug( "+++ childs draw %d [%f,%f]",(int)w.A.width,dx,dy);
+//~               ltkdebug( "+++ childs draw %d [%f,%f]",(int)w.A.width,dx,dy);
               cr.translate (dx, dy);
               cr.rectangle (0, 0, w.A.width , w.A.height );
               cr.clip ();

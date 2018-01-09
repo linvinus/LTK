@@ -98,7 +98,7 @@ namespace Ltk{
     private int CompareWidth (Widget? a, Widget? b){
       if(a == null || b == null)
         return 0;
-//~       debug("  ### a=%u > b=%u", a.min_width , b.min_width);
+//~       ltkdebug("  ### a=%u > b=%u", a.min_width , b.min_width);
       if(a.min_width < b.min_width){
         return 1;
       }else if(a.min_width > b.min_width){
@@ -272,7 +272,7 @@ namespace Ltk{
       get{ return  this._min_width;}
       set{
         if(value != this._min_width){
-          debug("Widget min_width_old=%u new=%u",(uint)this._min_width,value);
+          ltkdebug("Widget min_width_old=%u new=%u",(uint)this._min_width,value);
           this._min_width = value;
           if(this.A.width < this._min_width)
             this.damaged = true;
@@ -363,7 +363,7 @@ namespace Ltk{
         if(_damaged){
           this.send_damage();
         }
-        debug("--- Widget damaged=%u width=%u height=%u childs=%u",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
+        ltkdebug("--- Widget damaged=%u width=%u height=%u childs=%u",(uint)_damaged,this.A.width,this.A.height, this.childs.count);
         }
       default = true;
     }
@@ -385,7 +385,7 @@ namespace Ltk{
 
     ~Widget(){
       this.childs.remove_all();
-      debug("~Widget");
+      ltkdebug("~Widget");
     }
 
     public virtual bool draw(Cairo.Context cr){
@@ -420,9 +420,9 @@ namespace Ltk{
       }
     }
     public void send_damage(Widget w = this,uint sx = this.A.x,uint sy = this.A.y,uint swidth = this.A.width,uint sheight = this.A.height){
-//~        debug("Widget send_damage");
+//~        ltkdebug("Widget send_damage");
        var win = get_top_window();
-//~        debug("Widget send_damage %u",(uint)win);
+//~        ltkdebug("Widget send_damage %u",(uint)win);
        if(win != null){
           win.damage(w,sx,sy,swidth,sheight);
         }
@@ -436,7 +436,7 @@ namespace Ltk{
       if(focus && !this._focused){
         this._focused = focus;
         var win = this.get_top_window();
-        debug("set_focus=%p",win);
+        ltkdebug("set_focus=%p",win);
         if(win != null){
           win.grab_focus(this);
         }

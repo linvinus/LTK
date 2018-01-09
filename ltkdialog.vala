@@ -33,7 +33,7 @@ namespace Ltk{
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
       channel.add_watch(IOCondition.IN,  (source, condition) => {
           if (condition == IOCondition.HUP) {
-          debug ("The connection has been broken.");
+          ltkdebug("The connection has been broken.");
           Global.loop.quit();
           return false;
           }
@@ -41,7 +41,7 @@ namespace Ltk{
         });
 
       loop.run();
-      debug ("Dialog was quit");
+      ltkdebug("Dialog was quit");
     }
   }//class Dialog
   

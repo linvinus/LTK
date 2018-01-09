@@ -25,7 +25,7 @@ namespace Ltk{
 		  var win = this.get_xcb_window();
 		  win.set_type_popup_menu();
 		  win.set_transient_for(this.parent_window.get_xcb_window());
-		  debug("PopupMenu grab_pointer=%u win_id=%u",(uint)win.grab_pointer(),win.get_xcb_id());
+		  ltkdebug("PopupMenu grab_pointer=%u win_id=%u",(uint)win.grab_pointer(),win.get_xcb_id());
 		  win.on_button_press.connect(this._on_button_press);
 		  int16 x=0,
 				y=0,
@@ -36,10 +36,10 @@ namespace Ltk{
 		}
 		private void _on_button_press(uint button,uint x, uint y){
 			var win = this.get_xcb_window();
-			debug("PopupMenu on_button_press xy=%u,%u",x,y);
+			ltkdebug("PopupMenu on_button_press xy=%u,%u",x,y);
 			if( !( ( x > win.x  && x < (win.x + win.width) ) &&
 						 ( y > win.y  && y < (win.y + win.height) ) ) ){
-							 debug("PopupMenu destroy count=%u",this.ref_count);
+							 ltkdebug("PopupMenu destroy count=%u",this.ref_count);
 	//~                                  win.unref();
 							 win.on_button_press.disconnect(_on_button_press);
 							 this.unref();

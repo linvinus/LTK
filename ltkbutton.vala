@@ -49,7 +49,7 @@ namespace Ltk{
       engine.padding.right = 0;
     }
     public override bool draw(Cairo.Context cr){
-      debug( "Button draw %s",this.get_class().get_name());
+      ltkdebug( "Button draw %s",this.get_class().get_name());
         this.engine.begin(this.state,this.A.width,this.A.height);
         if(this.damaged){
          this.engine.draw_box(cr,this.engine.height / 10.0);

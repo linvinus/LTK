@@ -63,7 +63,7 @@ namespace Ltk{
       //firstly send to child, so child can cancel event
       this.window.on_button_press.connect((button, state, x, y)=>{
           Widget? w = this.find_mouse_child(this,x,y);
-          debug("window on_button_press2 %u xy=%u,%u w=%p",button, x, y,w);
+          ltkdebug("window on_button_press2 %u xy=%u,%u w=%p",button, x, y,w);
           if(w != null){
             this.button_press_widget[button % 25] = w;//remember latest widget
             w.on_button_press(button,state, x, y);
@@ -74,7 +74,7 @@ namespace Ltk{
       //firstly send to child, so child can cancel event
       this.window.on_button_release.connect((button, state, x, y)=>{
           Widget? w = this.button_press_widget[button];//release event could be outside our window, so use remembered widget
-          debug("window on_button_release2 %u xy=%u,%u w=%p",button, x, y,w);
+          ltkdebug("window on_button_release2 %u xy=%u,%u w=%p",button, x, y,w);
           if(w != null){
             w.on_button_release(button,state, x, y);
             this.button_press_widget[button % 25] = null;//done
@@ -87,19 +87,19 @@ namespace Ltk{
 
 //~       this.window.on_quit.connect(()=>{
 //~         GLib.Signal.stop_emission_by_name(this.window,"on-quit");
-//~         debug("Window window.on_quit");
+//~         ltkdebug("Window window.on_quit");
 //~         return false;
 //~         });
 //~       return base(null);
     }
 
     ~Window(){
-      debug("~Window");
+      ltkdebug("~Window");
     }
 
 
     public override bool draw(Cairo.Context cr){
-      debug( "window draw w=%u h=%u childs=%u damage=%u", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
+      ltkdebug( "window draw w=%u h=%u childs=%u damage=%u", this.min_width,this.min_height,this.childs.count,(uint)this.damaged);
       var _ret = base.draw(cr);//Container
       return _ret;
     }//draw
@@ -121,12 +121,12 @@ namespace Ltk{
     }
 
     public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget calc_initiator){
-      debug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      ltkdebug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       this._calculating_size=true;
       uint oldw = uint32.min(this.A.width,calc_width);
       uint oldh = uint32.min(this.A.height,calc_height);
       base.calculate_size(ref calc_width,ref calc_height, calc_initiator);
-      debug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      ltkdebug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
       if(calc_width != oldw||
          calc_height != oldh){
            this.window.resize_and_remember(calc_width,calc_height);
@@ -139,7 +139,7 @@ namespace Ltk{
 
 
     public void size_request(uint new_width, uint new_height){
-      debug( "window size_request=%u,%u", new_width,new_height);
+      ltkdebug( "window size_request=%u,%u", new_width,new_height);
       if(this.A.width != new_width || this.A.height != new_height){
         this.window.resize(new_width,new_height);
       }
@@ -156,7 +156,7 @@ namespace Ltk{
 
     private weak Widget? find_mouse_child(Container cont, uint x, uint y){
       foreach(Widget w in cont.childs){
-//~           debug( "> %u < %u < %u ,  %u < %u < %u  ",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
+//~           ltkdebug( "> %u < %u < %u ,  %u < %u < %u  ",w.A.x,x,(w.A.x+w.A.width), w.A.y,y,(w.A.y + w.A.height) );
 
         if( ( x > w.A.x  && x < (w.A.x + w.A.width) ) &&
             ( y > w.A.y  && y < (w.A.y + w.A.height) ) ){
@@ -181,7 +181,7 @@ namespace Ltk{
     }//find_mouse_child_up
 
     private void _on_mouse_move(uint x, uint y){
-//~       debug("window on_mouse_move=%u,%u",x,y);
+//~       ltkdebug("window on_mouse_move=%u,%u",x,y);
       if(this.previous_widget_under_mouse == null){
         this.previous_widget_under_mouse = this.find_mouse_child(this,x,y);
          if(this.previous_widget_under_mouse != null){
@@ -205,7 +205,7 @@ namespace Ltk{
       if(this.previous_widget_under_mouse != null){
         Widget w = this.previous_widget_under_mouse;//take owner
         w.on_mouse_move(x,y);
-//~         debug( "window child under mouse is wh=%u,%u",
+//~         ltkdebug( "window child under mouse is wh=%u,%u",
 //~             this.previous_widget_under_mouse.A.width,
 //~             this.previous_widget_under_mouse.A.height);
       }
@@ -225,7 +225,7 @@ namespace Ltk{
 
     //set focus for child widget
     private void _on_button_press(uint button,uint state,uint x, uint y){
-        debug("window on_button_press %u xy=%u,%u",button, x, y);
+        ltkdebug("window on_button_press %u xy=%u,%u",button, x, y);
           Widget? w = this.focused_widget;
           if( w == null ||
              (w != null &&
@@ -256,7 +256,7 @@ namespace Ltk{
        }else{
          this.focused_widget = null;
        }
-       debug("window grab_focus widget=%p",this.focused_widget);
+       ltkdebug("window grab_focus widget=%p",this.focused_widget);
     }
 
   }//class Window

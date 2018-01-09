@@ -128,7 +128,7 @@ namespace Ltk{
 
 
       if (Global.C.has_error() != 0) {
-              debug( "Could not connect to X11 server");
+              ltkdebug( "Could not connect to X11 server");
               GLib.Process.exit(1) ;
       }
 
@@ -213,7 +213,7 @@ namespace Ltk{
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
       Global.xcb_source = channel.add_watch(IOCondition.IN,  (source, condition) => {
           if (condition == IOCondition.HUP) {
-          debug ("The connection has been broken.");
+          ltkdebug("The connection has been broken.");
           Global.loop.quit();
           return false;
           }
@@ -233,15 +233,15 @@ namespace Ltk{
 
     public static void run(){
       Global.loop.run ();
-      debug ("atoms.remove_all");
+      ltkdebug("atoms.remove_all");
       Global.atoms.remove_all();
-//~       debug ("windows.remove_all");
+//~       ltkdebug("windows.remove_all");
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
 //~       Global.windows.remove_all();
       //~     surface.finish();
     FontLoader.destroy();
 
-//~     debug ("Global.C.unref");
+//~     ltkdebug("Global.C.unref");
 //~     GLib.Source.remove(Global.xcb_source);
 
 //~     surface.destroy();
@@ -252,7 +252,7 @@ namespace Ltk{
          Xcb.GenericEvent event;
          bool _return = true;
 
-//~           debug( "!!!!!!!!!!!event");
+//~           ltkdebug( "!!!!!!!!!!!event");
           /**
            * @brief Bit mask to find event type regardless of event source.
            *
@@ -267,7 +267,7 @@ namespace Ltk{
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
           
           while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
-//~             debug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
+//~             ltkdebug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
             unowned XcbWindow?  win = null;
             switch (event.response_type & ~0x80) {
               case Xcb.EXPOSE:
@@ -304,7 +304,7 @@ namespace Ltk{
               case Xcb.BUTTON_PRESS:
               case Xcb.BUTTON_RELEASE:
                  Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
-                 debug("BUTTON_PRESS window=%u child=%u root=%u",e.event,e.child,e.root);
+                 ltkdebug("BUTTON_PRESS window=%u child=%u root=%u",e.event,e.child,e.root);
                  var xcbwin = e.event;
                  if(Global.grab_window_remap[0] == xcbwin){
                    xcbwin = Global.grab_window_remap[1];
@@ -484,7 +484,7 @@ namespace Ltk{
        * KeySym */
       if( ((state & Global.key_masks.numlock)> 0) && Xcb.is_keypad_key(k1))
       {
-        debug("state=%u numlock=%u",state , Global.key_masks.numlock);
+        ltkdebug("state=%u numlock=%u",state , Global.key_masks.numlock);
         /* The Shift modifier  is on, or if the Lock  modifier is on and
          * is interpreted as ShiftLock, use the first KeySym */
         if((state & Xcb.ModMask.SHIFT)>0 ||
