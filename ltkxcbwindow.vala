@@ -123,7 +123,8 @@ namespace Ltk{
                   Xcb.EventMask.LEAVE_WINDOW|
                   Xcb.EventMask.ENTER_WINDOW|
                   Xcb.EventMask.KEY_PRESS|
-                  Xcb.EventMask.KEY_RELEASE;
+                  Xcb.EventMask.KEY_RELEASE|
+                  Xcb.EventMask.PROPERTY_CHANGE;
 
       Global.C.create_window(Xcb.COPY_FROM_PARENT, this.window, Global.screen.root,
                 (int16)this.pos_x, (int16)this.pos_y, (uint16)this.min_width, (uint16)this.min_height, 0,
@@ -393,6 +394,9 @@ namespace Ltk{
                Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
                this.on_button_release((uint)e.detail,e.state, (uint) e.event_x, (uint) e.event_y);
             break;
+            case Xcb.SELECTION_NOTIFY:
+                Xcb.SelectionNotifyEvent e = (Xcb.SelectionNotifyEvent)event;
+			break;
           }//switch
   //~         free(event);
 //~           Global.C.flush();

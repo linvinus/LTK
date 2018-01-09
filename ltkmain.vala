@@ -65,6 +65,8 @@ namespace Ltk{
     public static const string _net_wm_state_modal = "_NET_WM_STATE_MODAL";
     public static const string _net_wm_window_type = "_NET_WM_WINDOW_TYPE";
     public static const string _net_wm_window_type_popup_menu = "_NET_WM_WINDOW_TYPE_POPUP_MENU";
+    public static const string primary = "PRIMARY";
+    public static const string clipboard = "CLIPBOARD";
   }	
 	
 //~   [SimpleType]
@@ -188,6 +190,14 @@ namespace Ltk{
         Global.atoms.insert(atom_names._net_wm_window_type_popup_menu,
           Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names._net_wm_window_type_popup_menu)).atom);
 
+      if(!Global.atoms.contains(atom_names.primary))
+        Global.atoms.insert(atom_names.primary,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names.primary)).atom);
+
+      if(!Global.atoms.contains(atom_names.clipboard))
+        Global.atoms.insert(atom_names.clipboard,
+          Global.C.intern_atom_reply(Global.C.intern_atom(false,atom_names.clipboard)).atom);
+
       Global.deleteWindowAtom = Global.atoms.lookup(atom_names.wm_delete_window);
       Global.net_wm_ping_atom = Global.atoms.lookup(atom_names._net_wm_ping);
 
@@ -308,6 +318,17 @@ namespace Ltk{
                 Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
                 Xcb.refresh_keyboard_mapping(Global.keysyms, e);
               break;
+              case Xcb.SELECTION_NOTIFY:
+                Xcb.SelectionNotifyEvent e = (Xcb.SelectionNotifyEvent)event;
+                 var xcbwin = e.requestor;
+                 if(Global.grab_window_remap[0] == xcbwin){
+                   xcbwin = Global.grab_window_remap[1];
+                 }
+                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
+                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
+                  _return = win.process_event(event);
+                 }
+              break;
              }
            Global.C.flush();
            free(event);
@@ -360,6 +381,9 @@ namespace Ltk{
     
     public static void quit(){
 		loop.quit ();
+	}
+    public static GLib.MainContext loop_get_context(){
+		return loop.get_context ();
 	}
 
   private static uint16 _xcb_keymap_mask_get(Xcb.GetModifierMappingReply reply, Xcb.KeySym   sym){
@@ -502,6 +526,10 @@ namespace Ltk{
 
       return Xcb.NO_SYMBOL;
     }//key_getkeysym
+    
+    public static void get_clipboard(){
+//~ 		atom_names.primary
+	}
 
   }//struct Global
 }//namespace Ltk
