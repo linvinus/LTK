@@ -79,13 +79,28 @@ int main (string[] argv) {
     container2.add(button);
 //~     button.width=300;
     container2.add(container);
-    button = new Ltk.Button("2horizontal :)))");
-    container2.add(button);
+	weak Ltk.Window win_parent = window;
+    var button4 = new Ltk.Button("2horizontal :)))");
+    container2.add(button4);
 //~     button.height=200;
 //~     button.width=200;
+    button4.on_click.connect(()=>{
+			debug("__________ button4.on_click");
+		    var dialog = new Ltk.Dialog(win_parent);
+			dialog.place_policy = Ltk.SOptions.place_horizontal;
+			dialog.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
+			dialog.set_title("xcb_vala_dialog");
+
+			var butt = new Ltk.Button("Hello from dialog!");
+			dialog.add(butt);
+			dialog.show();
+			dialog.run();
+
+		});
+
     var button3 = new Ltk.Button("3horizontal :)))");
     container2.add(button3);
-    weak Ltk.Window win_parent = window;
+    
     button3.on_click.connect(()=>{
 			debug("__________ button3.on_click");
 //~ 		    var dialog = new Ltk.Dialog(win_parent);
