@@ -8,3 +8,4 @@ syntax: glob
 /*.c
 /*.h
 /test/tmpfs
+!ltkdebug.h
