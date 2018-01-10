@@ -19,6 +19,7 @@ VALA_FLAGS += -X -DGETTEXT_PACKAGE=\"$(PRG_NAME)\" -X -DAY_GIT_HASH=\"$(GIT_HASH
 include ../Makefile
 
 VALA_FLAGS += $(LTK_FLAGS)
+VALA_FLAGS += -X -DLTK_DEBUG=1
 
 PREFIX?=/usr
 

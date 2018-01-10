@@ -2200,6 +2200,7 @@ namespace Xcb {
 	[SimpleType]
 	[CCode (cname = "xcb_void_cookie_t", has_type_id = false)]
 	public struct VoidCookie {
+		public uint16 sequence;
 	}
 
 	[SimpleType]

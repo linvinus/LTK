@@ -22,6 +22,7 @@ namespace Ltk{
 		private weak Window parent_window;
 		public PopupMenu(Window parent){
 		  this.parent_window = parent;
+      this.parent_window.get_xcb_window().on_mouse_leave(0,0);//emulate mouse leave event
 		  var win = this.get_xcb_window();
 		  win.set_type_popup_menu();
 		  win.set_transient_for(this.parent_window.get_xcb_window());
@@ -34,17 +35,18 @@ namespace Ltk{
 		  win.query_pointer(ref x,ref y,ref wx,ref wy);
 		  win.move_resize(x,y,this.min_width,this.min_height);
 		}
-		private void _on_button_press(uint button,uint x, uint y){
-			var win = this.get_xcb_window();
-			ltkdebug("PopupMenu on_button_press xy=%u,%u",x,y);
-			if( !( ( x > win.x  && x < (win.x + win.width) ) &&
-						 ( y > win.y  && y < (win.y + win.height) ) ) ){
-							 ltkdebug("PopupMenu destroy count=%u",this.ref_count);
-	//~                                  win.unref();
-							 win.on_button_press.disconnect(_on_button_press);
-							 this.unref();
-							 
-			}
+		private void _on_button_press(uint button,uint state,uint x, uint y){
+      if(button == 1 || button == 3){
+        var win = this.get_xcb_window();
+        ltkdebug("PopupMenu on_button_press xy=%u,%u win xy=%u,%u wh=%u,%u",x,y,win.x,win.y,win.width,win.height);
+        if( !( ( x > win.x  && x < (win.x + win.width) ) &&
+               ( y > win.y  && y < (win.y + win.height) ) ) ){
+                 ltkdebug("PopupMenu destroy count=%u",this.ref_count);
+    //~                                  win.unref();
+                 win.on_button_press.disconnect(_on_button_press);
+                 this.unref();
+        }
+      }
 		}
 	}//class PopupMenu
 	

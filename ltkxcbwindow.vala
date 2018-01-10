@@ -67,8 +67,13 @@ namespace Ltk{
     private uint draw_callback_timer;
     private bool _mapped = false;
     public bool mapped {get {return _mapped;}}
+    private uint16 last_resize_sequence;
 
     private void create_pixmap(uint16 width, uint16 height){
+      /*
+       * there is no way to resize X11 pixmap,
+       * we can only destroy old and create newone.
+       */
       uint32 prev_gc = this.pixmap_gc;
       uint32 prev_pixmap = this.pixmap;
 
@@ -100,10 +105,10 @@ namespace Ltk{
         values[0] =  this.pixmap ;
         values[1] = 0;
         Global.C.change_window_attributes (this.window, Xcb.CW.BACK_PIXMAP, values);
+        cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)width,(int)height);
       }
 //~       uint32 position[] = { this.pos_x, this.pos_y, this.min_width, this.min_height };
 //~       Global.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
-
     }
 
     public XcbWindow(){
@@ -112,6 +117,9 @@ namespace Ltk{
       this.min_width = 1;
       this.min_height = 1;
       uint32 values[2];
+
+      this.surface = new Cairo.XcbSurface(Global.C, /*this.pixmap*/0, Global.visual, (int)this.min_width, (int)this.min_height);
+      this.cr = new Cairo.Context(this.surface);
 
       this.create_pixmap(1,1);
 
@@ -174,8 +182,6 @@ namespace Ltk{
 
       }
 
-      this.surface = new Cairo.XcbSurface(Global.C, this.pixmap, Global.visual, (int)this.min_width, (int)this.min_height);
-      this.cr = new Cairo.Context(this.surface);
       Global.windows.insert(this.window,this);
     }//XcbWindow
 
@@ -235,23 +241,28 @@ namespace Ltk{
 
     private void move_resize_req(uint x,uint y,uint width,uint height){
         uint32 position[] = { this.pos_x, this.pos_y, this.min_width, this.min_height };
-        Global.C.configure_window(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+        var cookie = Global.C.configure_window_checked(this.window, (Xcb.ConfigWindow.X | Xcb.ConfigWindow.Y | Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+        this.last_resize_sequence = cookie.sequence;
     }
 
     private void resize_req(uint width,uint height){
 //~       this.min_width = width;
 //~       this.min_height = height;
       if(this.state == WindowState.visible){
-        uint32 position[] = { width, height };
-        Global.C.configure_window(this.window, ( Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), position);
+        uint32 size[] = { width, height };
+        var cookie = Global.C.configure_window_checked(this.window, ( Xcb.ConfigWindow.WIDTH | Xcb.ConfigWindow.HEIGHT), size);
+        this.last_resize_sequence = cookie.sequence;
+        ltkdebug("resize_req2 wh=%u,%u cookie = %u %u",width, height,this.last_resize_sequence);
       }
     }
 
     public void resize_and_remember(uint width,uint height){
+      ltkdebug("resize_req4 wh=%u,%u cookie = %u %u",width, height,this.last_resize_sequence);
       this.resize(width,height);
       if(this.state == WindowState.visible){
         this.min_width = width;
         this.min_height = height;
+        this.create_pixmap((uint16)this.min_width,(uint16)this.min_height);
         this.cancel_draw();//new draw event will be on configure event
       }
     }
@@ -263,6 +274,7 @@ namespace Ltk{
       }else{
         this.min_width = width;
         this.min_height = height;
+        this.create_pixmap((uint16)this.min_width,(uint16)this.min_height);
       }
     }
 
@@ -275,6 +287,7 @@ namespace Ltk{
         this.pos_y = (int)y;
         this.min_width = width;
         this.min_height = height;
+        this.create_pixmap((uint16)this.min_width,(uint16)this.min_height);
       }
     }
 
@@ -290,37 +303,36 @@ namespace Ltk{
   //~                       (int)e.event,
   //~                       (int)e.window
   //~                       );
-      ltkdebug( "on_configure w=%u h=%u ", this.min_width,this.min_height);
-      if( (e.width == 1 && e.height == 1) && (this.min_width != 1 && this.min_height != 1))
+      ltkdebug( "on_configure w=%u,%u e=%u,%u e.s=%u l.s=%u", this.min_width,this.min_height,e.width,e.height,e.sequence , this.last_resize_sequence);
+//~       if(e.sequence > this.last_resize_sequence)
+//~         this.last_resize_sequence = e.sequence;
+      /*if( (e.width == 1 && e.height == 1) && (this.min_width != 1 && this.min_height != 1)){
+        this.size_changed(e.width,e.height);//some 
         return;//skip first map
+      }*/
+      /* if mouse was up inside window then value of e.x; e.y will be not in root window coordinates
+       * get x,y in root window coordinates*/
+      this.translate_coordinates_to_root(0,0,ref this.pos_x,ref this.pos_y);
 
-      this.pos_x = e.x;
-      this.pos_y = e.y;
+      if(e.sequence <= this.last_resize_sequence)
+        return;
+
+      ltkdebug( "on_configure3 x=%u y=%u  wh=%u,%u", this.pos_x,this.pos_y,e.width,e.height);
       if(this.min_width != e.width || this.min_height != e.height){
         this.min_width  = e.width;
         this.min_height = e.height;
-//~         this.window_widget.A.width = this.min_width;
-//~         this.window_widget.A.height = this.min_height;
         uint _w = this.min_width;
         uint _h = this.min_height;
         this.size_changed(_w,_h);
+        if(_w == this.min_width && _h == this.min_height){
+            //new size is ok, resize pixmap
+            this.create_pixmap((uint16)this.min_width,(uint16)this.min_height);
+        }else{
+          //window dimension not enough for widgets, waiting for new size
+          this.cancel_draw();//wait
+        }
+        ltkdebug( "on_configure2 w=%u h=%u  _w=%u _h=%u", this.min_width,this.min_height,_w,_h);
       }
-      ltkdebug( "on_configure2 w=%u h=%u ", this.min_width,this.min_height);
-
-      /*
-       * there is no way to resize X11 pixmap,
-       * we can only destroy old and create newone.
-       */
-        this.create_pixmap((uint16)this.min_width,(uint16)this.min_height);
-//~         Global.C.flush();
-//~         Global.C.create_pixmap(Global.screen.root_depth,this.pixmap,Global.screen.root,(uint16)this.min_width,(uint16)this.min_height);
-//~       this.pixmap
-//~         this.surface.set_size((int)this.min_width,(int)this.min_height);
-
-//~         this.surface.set_drawable(this.pixmap,(int)this.min_width,(int)this.min_height);
-        cairo_xcb_surface_set_drawable(this.surface,this.pixmap,(int)this.min_width,(int)this.min_height);
-  //~     ltkdebug( "on_map x,y=%d,%d w,h=%d,%d",(int)this.x,(int)this.y,(int)this.min_width,(int)this.min_height);
-      this.queue_draw();
     }
 
     public bool process_event(Xcb.GenericEvent event){
@@ -332,11 +344,12 @@ namespace Ltk{
   //~       ltkdebug( "event=%d expose=%d map=%d",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
           switch (event.response_type & ~0x80) {
             case Xcb.MAP_NOTIFY:
-              this._mapped =true;
-              this.queue_draw();
+              this._mapped = true;
+//~               this.damage(0, 0, this.min_width, this.min_height);
             break;
             case Xcb.UNMAP_NOTIFY:
                this._mapped =false;
+               this.cancel_draw();
                break;
             case Xcb.EXPOSE:
                 /* Avoid extra redraws by checking if this is
@@ -370,7 +383,7 @@ namespace Ltk{
                 }
             break;
             case Xcb.CONFIGURE_NOTIFY:
-                if(event.response_type == Xcb.CONFIGURE_NOTIFY)
+                // Window Managers, send synthetic CONFIGURE_NOTIFY so don't check that !if(event.response_type == Xcb.CONFIGURE_NOTIFY)
                   this.on_configure((Xcb.ConfigureNotifyEvent)event);
             break;
             case Xcb.MOTION_NOTIFY:
@@ -397,11 +410,11 @@ namespace Ltk{
             break;
             case Xcb.BUTTON_PRESS:
                Xcb.ButtonPressEvent e = (Xcb.ButtonPressEvent)event;
-               this.on_button_press((uint)e.detail,e.state, (uint) e.event_x, (uint) e.event_y);
+               this.on_button_press((uint)e.detail,e.state, (uint) e.root_x, (uint) e.root_y);
             break;
             case Xcb.BUTTON_RELEASE:
                Xcb.ButtonReleaseEvent e = (Xcb.ButtonReleaseEvent)event;
-               this.on_button_release((uint)e.detail,e.state, (uint) e.event_x, (uint) e.event_y);
+               this.on_button_release((uint)e.detail,e.state, (uint) e.root_x, (uint) e.root_y);
             break;
             case Xcb.SELECTION_NOTIFY:
                 Xcb.SelectionNotifyEvent e = (Xcb.SelectionNotifyEvent)event;
@@ -454,17 +467,26 @@ namespace Ltk{
       this.queue_draw();
     }
 
-    private bool on_draw(){
+    public void reset_damage(){
+      this.damage_region.width = this.damage_region.height = 0;
+      this.damage_region.x = this.damage_region.y = (uint32)0xFFFFFFFF;
+    }
+
+    private void do_draw(){
       this.draw_area(this.damage_region.x,
                      this.damage_region.y,
                      this.damage_region.width-this.damage_region.x,
                      this.damage_region.height-this.damage_region.y );
-      this.draw_callback_timer = this.damage_region.width = this.damage_region.height = 0;
-      this.damage_region.x = this.damage_region.y = (uint32)0xFFFFFFFF;
+      this.reset_damage();
+    }
+    
+    private bool on_draw(){
+      this.do_draw();
+      this.draw_callback_timer = 0;
       return GLib.Source.REMOVE;//done
     }
 
-    public void queue_draw(){
+    private void queue_draw(){
       if(this.draw_callback_timer == 0 && this._mapped){
 //~         GLib.Source.remove(draw_callback_timer);
         this.draw_callback_timer = GLib.Timeout.add((1000/30),on_draw);
@@ -573,13 +595,33 @@ namespace Ltk{
       win_y = reply.win_y;
     }
 
+      public bool translate_coordinates_to_root(int16 src_x,int16 src_y,ref int dst_x,ref int dst_y){
+        var repl = Global.C.translate_coordinates_reply(Global.C.translate_coordinates_unchecked(this.window,Global.screen.root,src_x,src_y));
+        if(repl != null){
+          dst_x = repl.dst_x;
+          dst_y = repl.dst_y;
+          return true;
+        }
+        return false;
+      }
+      
+      public bool translate_coordinates_from_root(int16 src_x,int16 src_y,ref int dst_x,ref int dst_y){
+        var repl = Global.C.translate_coordinates_reply(Global.C.translate_coordinates_unchecked(Global.screen.root,this.window,src_x,src_y));
+        if(repl != null){
+          dst_x = repl.dst_x;
+          dst_y = repl.dst_y;
+          return true;
+        }
+        return false;
+      }
+
     public signal void size_changed(uint width,uint height);//for parents
     public signal bool draw(Cairo.Context cr);
     public signal void on_mouse_move(uint x, uint y);
     public signal void on_mouse_enter(uint x, uint y);
     public signal void on_mouse_leave(uint x, uint y);
-    public signal void on_button_press(uint button, uint state, uint x, uint y);
-    public signal void on_button_release(uint detail, uint state, uint x, uint y);
+    public signal void on_button_press(uint button, uint state, uint root_x, uint root_y);
+    public signal void on_button_release(uint detail, uint state, uint root_x, uint root_y);
     public signal void on_key_press(uint keycode, uint state);
     public signal void on_key_release(uint keycode, uint state);
     [Signal (run="last",detailed=false)]

@@ -61,25 +61,11 @@ namespace Ltk{
       this.window.on_key_release.connect((keycode, state) => {this.on_key_press(keycode, state);});
 
       //firstly send to child, so child can cancel event
-      this.window.on_button_press.connect((button, state, x, y)=>{
-          Widget? w = this.find_mouse_child(this,x,y);
-          ltkdebug("window on_button_press2 %u xy=%u,%u w=%p",button, x, y,w);
-          if(w != null){
-            this.button_press_widget[button % 25] = w;//remember latest widget
-            w.on_button_press(button,state, x, y);
-          }
-        });
+      this.window.on_button_press.connect(_on_button_press_translate_for_child);
       this.window.on_button_press.connect(_on_button_press);
 
       //firstly send to child, so child can cancel event
-      this.window.on_button_release.connect((button, state, x, y)=>{
-          Widget? w = this.button_press_widget[button];//release event could be outside our window, so use remembered widget
-          ltkdebug("window on_button_release2 %u xy=%u,%u w=%p",button, x, y,w);
-          if(w != null){
-            w.on_button_release(button,state, x, y);
-            this.button_press_widget[button % 25] = null;//done
-          }
-      });
+      this.window.on_button_release.connect(_on_button_release_translate_for_child);
 
 //~       this.damage.connect((widget,x,y,w,h)=>{});
 
@@ -224,15 +210,39 @@ namespace Ltk{
 //~     public override void on_button_press(uint detail,uint x, uint y){
 
     //set focus for child widget
+    private void _on_button_press_translate_for_child(uint button,uint state,uint x, uint y){
+        uint tx=x,ty=y;
+        if(this.translate_coordinates(ref tx,ref ty)){
+          Widget? w = this.find_mouse_child(this,tx,ty);
+          ltkdebug("window on_button_press2 %u xy=%u,%u w=%p",button, tx, ty,w);
+          if(w != null){
+            this.button_press_widget[button % 25] = w;//remember latest widget
+            w.on_button_press(button,state, tx, ty);
+          }
+        }
+    }
+    private void _on_button_release_translate_for_child(uint button,uint state,uint x, uint y){
+        uint tx=x,ty=y;
+        this.translate_coordinates(ref tx,ref ty);
+        Widget? w = this.button_press_widget[button];//release event could be outside our window, so use remembered widget
+        ltkdebug("window on_button_release2 %u xy=%u,%u w=%p",button, x, y,w);
+        if(w != null){
+          w.on_button_release(button,state, tx, ty);//could be outside window!!!!
+          this.button_press_widget[button % 25] = null;//done
+        }
+    }
     private void _on_button_press(uint button,uint state,uint x, uint y){
         ltkdebug("window on_button_press %u xy=%u,%u",button, x, y);
           Widget? w = this.focused_widget;
-          if( w == null ||
-             (w != null &&
-              !( ( x > w.A.x  && x < (w.A.x + w.A.width) ) &&
-                 ( y > w.A.y  && y < (w.A.y + w.A.height) ) ) )
-          ){
-               w = this.find_mouse_child(this,x,y);
+          uint tx=x,ty=y;
+          if(this.translate_coordinates(ref tx,ref ty)){
+            if( w == null ||
+               (w != null &&
+                !( ( tx > w.A.x  && tx < (w.A.x + w.A.width) ) &&
+                   ( ty > w.A.y  && ty < (w.A.y + w.A.height) ) ) )
+            ){
+                 w = this.find_mouse_child(this,tx,ty);
+            }
           }
 
          if(this.focused_widget != w){
@@ -257,6 +267,22 @@ namespace Ltk{
          this.focused_widget = null;
        }
        ltkdebug("window grab_focus widget=%p",this.focused_widget);
+    }
+
+    public bool translate_coordinates(ref uint x, ref uint y){
+        var win = this.get_xcb_window();
+        uint wx = win.x,
+             wy = win.y,
+             ww = win.width,
+             wh = win.height;
+        if( ( ( x > wx  && x < (wx + ww) ) &&
+              ( y > wy  && y < (wy + wh) ) ) ){
+                 x = x - wx;
+                 y = y - wy;
+                 ltkdebug("window on_button xy=%u,%u",x,y);
+                 return true;
+        }
+        return false;
     }
 
   }//class Window

@@ -288,10 +288,11 @@ namespace Ltk{
     }//get_xcbwindowid_from_event
 
     public static bool xcb_main_process_event(Xcb.GenericEvent event, MainLoop loop){
-//~             ltkdebug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
           unowned XcbWindow?  win = null;
           bool _return = true;
-          switch (event.response_type & ~0x80) {
+          uint8 response_type = (event.response_type & ~0x80);
+          ltkdebug( "!!!!!!!!!!!event=%u",response_type);
+          switch (response_type) {
             case Xcb.MAPPING_NOTIFY:
               Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
               Xcb.refresh_keyboard_mapping(Global.keysyms, e);
@@ -313,7 +314,7 @@ namespace Ltk{
             default:
                var xcbwin = Global.get_xcbwindowid_from_event(event);
                if(xcbwin != 0){
-                 if(Global.grab_window_remap[0] == xcbwin){
+                 if(Global.grab_window_remap[1] != 0/* == xcbwin*/){
                    xcbwin = Global.grab_window_remap[1];
                  }
                  if( (win = Global.windows.lookup(xcbwin)) != null){
