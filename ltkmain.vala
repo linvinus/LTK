@@ -255,6 +255,10 @@ namespace Ltk{
               case Xcb.EXPOSE:
               case Xcb.CLIENT_MESSAGE:
               case Xcb.CONFIGURE_NOTIFY:
+              case Xcb.MAP_NOTIFY:
+              case Xcb.DESTROY_NOTIFY:
+              case Xcb.UNMAP_NOTIFY:
+              case Xcb.VISIBILITY_NOTIFY:
                  Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
                  return e.window;
               break;
@@ -267,6 +271,14 @@ namespace Ltk{
               case Xcb.BUTTON_RELEASE:
                  Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
                  return e.event;
+              break;
+              case Xcb.NO_EXPOSURE:
+                 Xcb.NoExposureEvent e = (Xcb.NoExposureEvent)event;
+                 return e.drawable;
+              break;
+              case 0: //don't know what is it??
+              case Xcb.REPARENT_NOTIFY:
+              case Xcb.PROPERTY_NOTIFY: //just ignore
               break;
               default:
                 critical("Error unknown XCB event=%u",event.response_type & ~0x80);
@@ -283,6 +295,10 @@ namespace Ltk{
             case Xcb.MAPPING_NOTIFY:
               Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
               Xcb.refresh_keyboard_mapping(Global.keysyms, e);
+            break;
+            case Xcb.REPARENT_NOTIFY:
+            case Xcb.PROPERTY_NOTIFY:
+              return _return;
             break;
             case Xcb.SELECTION_NOTIFY:
               Xcb.SelectionNotifyEvent e = (Xcb.SelectionNotifyEvent)event;

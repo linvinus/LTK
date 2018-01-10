@@ -65,6 +65,8 @@ namespace Ltk{
 		}
     private Allocation damage_region;
     private uint draw_callback_timer;
+    private bool _mapped = false;
+    public bool mapped {get {return _mapped;}}
 
     private void create_pixmap(uint16 width, uint16 height){
       uint32 prev_gc = this.pixmap_gc;
@@ -329,6 +331,13 @@ namespace Ltk{
 //~       while (( (event = Global.C.poll_for_event()) != null ) /*&& !finished*/ ) {
   //~       ltkdebug( "event=%d expose=%d map=%d",(int)event.response_type ,Xcb.EXPOSE,Xcb.CLIENT_MESSAGE);
           switch (event.response_type & ~0x80) {
+            case Xcb.MAP_NOTIFY:
+              this._mapped =true;
+              this.queue_draw();
+            break;
+            case Xcb.UNMAP_NOTIFY:
+               this._mapped =false;
+               break;
             case Xcb.EXPOSE:
                 /* Avoid extra redraws by checking if this is
                  * the last expose event in the sequence
@@ -456,7 +465,7 @@ namespace Ltk{
     }
 
     public void queue_draw(){
-      if(this.draw_callback_timer == 0){
+      if(this.draw_callback_timer == 0 && this._mapped){
 //~         GLib.Source.remove(draw_callback_timer);
         this.draw_callback_timer = GLib.Timeout.add((1000/30),on_draw);
       }

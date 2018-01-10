@@ -1835,6 +1835,18 @@ namespace Xcb {
 	}
 
 	[Compact]
+	[CCode (cname = "xcb_no_exposure_event_t", ref_function = "", unref_function = "")]
+	public class NoExposureEvent {
+		public uint8 response_type;
+		uint8 pad0;
+		public uint16 sequence;
+		public Drawable drawable;
+		public uint16 minor_opcode;
+		public uint8 major_opcode;
+		uint8 pad1;
+	}
+
+	[Compact]
 	[CCode (cname = "xcb_visibility_notify_event_t", ref_function = "", unref_function = "")]
 	public class VisibilityNotifyEvent : GenericEvent {
 		uint16 sequence;
