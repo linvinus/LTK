@@ -42,6 +42,8 @@ extern void cairo_xcb_surface_set_drawable(Cairo.XcbSurface s,uint32 d,int width
 
 namespace Ltk{
 
+  public delegate bool ProcessEventFunc(Xcb.GenericEvent event, MainLoop loop);
+
   public struct  KeyMasks {
     uint16 numlock;
     uint16 shiftlock;
@@ -217,7 +219,7 @@ namespace Ltk{
           Global.loop.quit();
           return false;
           }
-          return xcb_pool_for_event();
+          return xcb_pool_for_event(Global.xcb_main_process_event,Global.loop);
         });
   //~     var xcb_source = new GLib.Source();
   //~     xcb_source.set_name("Ltk XCB event source");
@@ -248,8 +250,71 @@ namespace Ltk{
 //~     xcb_disconnect(c);
     }//run
     
-    public static bool xcb_pool_for_event(MainLoop loop = Global.loop,uint32 onlywindow = 0){
-         Xcb.GenericEvent event;
+    public static Xcb.Window get_xcbwindowid_from_event(Xcb.GenericEvent event){
+            switch (event.response_type & ~0x80) {
+              case Xcb.EXPOSE:
+              case Xcb.CLIENT_MESSAGE:
+              case Xcb.CONFIGURE_NOTIFY:
+                 Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
+                 return e.window;
+              break;
+              case Xcb.MOTION_NOTIFY:
+              case Xcb.ENTER_NOTIFY:
+              case Xcb.LEAVE_NOTIFY:
+              case Xcb.KEY_PRESS:
+              case Xcb.KEY_RELEASE:
+              case Xcb.BUTTON_PRESS:
+              case Xcb.BUTTON_RELEASE:
+                 Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
+                 return e.event;
+              break;
+              default:
+                critical("Error unknown XCB event=%u",event.response_type & ~0x80);
+              break;
+            }
+      return (Xcb.Window)0;
+    }//get_xcbwindowid_from_event
+
+    public static bool xcb_main_process_event(Xcb.GenericEvent event, MainLoop loop){
+//~             ltkdebug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
+          unowned XcbWindow?  win = null;
+          bool _return = true;
+          switch (event.response_type & ~0x80) {
+            case Xcb.MAPPING_NOTIFY:
+              Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
+              Xcb.refresh_keyboard_mapping(Global.keysyms, e);
+            break;
+            case Xcb.SELECTION_NOTIFY:
+              Xcb.SelectionNotifyEvent e = (Xcb.SelectionNotifyEvent)event;
+               var xcbwin = e.requestor;
+               if(Global.grab_window_remap[0] == xcbwin){
+                 xcbwin = Global.grab_window_remap[1];
+               }
+               if( (win = Global.windows.lookup(xcbwin)) != null){
+                _return = win.process_event(event);
+               }
+            break;
+            default:
+               var xcbwin = Global.get_xcbwindowid_from_event(event);
+               if(xcbwin != 0){
+                 if(Global.grab_window_remap[0] == xcbwin){
+                   xcbwin = Global.grab_window_remap[1];
+                 }
+                 if( (win = Global.windows.lookup(xcbwin)) != null){
+                  _return = win.process_event(event);
+                 }
+              }
+            break;
+          }//switch
+          Global.C.flush();
+          if(!_return){
+            loop.quit ();
+          }
+      return _return;
+    }//xcb_main_process_event
+
+    public static bool xcb_pool_for_event(ProcessEventFunc process_event_func, MainLoop loop){
+         Xcb.GenericEvent event = null;
          bool _return = true;
 
 //~           ltkdebug( "!!!!!!!!!!!event");
@@ -265,73 +330,10 @@ namespace Ltk{
           /*#define XCB_EVENT_RESPONSE_TYPE_MASK (0x7f)
           #define XCB_EVENT_RESPONSE_TYPE(e)   (e->response_type &  XCB_EVENT_RESPONSE_TYPE_MASK)
           #define XCB_EVENT_SENT(e)            (e->response_type & ~XCB_EVENT_RESPONSE_TYPE_MASK)*/
-          
-          while (( (event = Global.C.poll_for_event()) != null ) && _return ) {
-//~             ltkdebug( "!!!!!!!!!!!event=%u",(uint)event.response_type);
-            unowned XcbWindow?  win = null;
-            switch (event.response_type & ~0x80) {
-              case Xcb.EXPOSE:
-              case Xcb.CLIENT_MESSAGE:
-                 Xcb.ExposeEvent e = (Xcb.ExposeEvent)event;
-                 var xcbwin = e.window;
-                 if(Global.grab_window_remap[0] == xcbwin){
-                   xcbwin = Global.grab_window_remap[1];
-                 }
-                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
-                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
-                 _return = win.process_event(event);
-                   if(!_return){
-                     loop.quit ();
-                     }
-                 }
-              break;
-              case Xcb.CONFIGURE_NOTIFY:
-                 Xcb.ConfigureNotifyEvent e = (Xcb.ConfigureNotifyEvent)event;
-                 var xcbwin = e.window;
-                 if(Global.grab_window_remap[0] == xcbwin){
-                   xcbwin = Global.grab_window_remap[1];
-                 }
-                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
-                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
-                  _return = win.process_event(event);
-                }
-              break;
-              case Xcb.MOTION_NOTIFY:
-              case Xcb.ENTER_NOTIFY:
-              case Xcb.LEAVE_NOTIFY:
-              case Xcb.KEY_PRESS:
-              case Xcb.KEY_RELEASE:
-              case Xcb.BUTTON_PRESS:
-              case Xcb.BUTTON_RELEASE:
-                 Xcb.MotionNotifyEvent e = (Xcb.MotionNotifyEvent)event;
-                 ltkdebug("BUTTON_PRESS window=%u child=%u root=%u",e.event,e.child,e.root);
-                 var xcbwin = e.event;
-                 if(Global.grab_window_remap[0] == xcbwin){
-                   xcbwin = Global.grab_window_remap[1];
-                 }
-                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
-                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
-                  _return = win.process_event(event);
-                 }
-              break;
-              case Xcb.MAPPING_NOTIFY:
-                Xcb.MappingNotifyEvent e = (Xcb.MappingNotifyEvent)event;
-                Xcb.refresh_keyboard_mapping(Global.keysyms, e);
-              break;
-              case Xcb.SELECTION_NOTIFY:
-                Xcb.SelectionNotifyEvent e = (Xcb.SelectionNotifyEvent)event;
-                 var xcbwin = e.requestor;
-                 if(Global.grab_window_remap[0] == xcbwin){
-                   xcbwin = Global.grab_window_remap[1];
-                 }
-                 if( ( (onlywindow != 0 && onlywindow == xcbwin)||
-                     onlywindow == 0 ) && ( win = Global.windows.lookup(xcbwin)) != null){
-                  _return = win.process_event(event);
-                 }
-              break;
-             }
-           Global.C.flush();
-           free(event);
+
+          while ( _return && ( (event = Global.C.poll_for_event()) != null ) ) {
+            _return = process_event_func(event,loop);
+            free(event);
           }
       return _return;
     }//xcb_pool_for_event

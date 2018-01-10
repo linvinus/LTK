@@ -24,6 +24,15 @@ namespace Ltk{
       this.parent_window = parent;
     }
 
+    //process events for dialog only
+    private bool dialog_event_func(Xcb.GenericEvent event, MainLoop loop){
+      var xid = Global.get_xcbwindowid_from_event(event);
+      if(xid != 0 && xid == this.get_xcb_window().get_xcb_id() )
+        return Global.xcb_main_process_event(event,loop);
+      else
+        return true;//skip event and continue
+    }
+
     public void run(){
       var xcbwin = this.get_xcb_window();
       xcbwin.set_type_modal(true);
@@ -33,11 +42,11 @@ namespace Ltk{
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());
       channel.add_watch(IOCondition.IN,  (source, condition) => {
           if (condition == IOCondition.HUP) {
-          ltkdebug("The connection has been broken.");
-          Global.loop.quit();
-          return false;
+            ltkdebug("The connection has been broken.");
+            loop.quit();
+            return false;
           }
-          return Global.xcb_pool_for_event(loop,this.get_xcb_window().get_xcb_id());
+          return Global.xcb_pool_for_event(this.dialog_event_func,loop);
         });
 
       loop.run();
