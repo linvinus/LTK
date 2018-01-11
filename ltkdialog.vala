@@ -22,6 +22,9 @@ namespace Ltk{
     private weak Window parent_window;
     public Dialog(Window parent){
       this.parent_window = parent;
+      var xcbwin = this.get_xcb_window();
+      xcbwin.set_type_modal(true);
+      xcbwin.set_transient_for(this.parent_window.get_xcb_window().get_xcb_id());
     }
 
     //process events for dialog only
@@ -34,9 +37,6 @@ namespace Ltk{
     }
 
     public void run(){
-      var xcbwin = this.get_xcb_window();
-      xcbwin.set_type_modal(true);
-      xcbwin.set_transient_for(this.parent_window.get_xcb_window());
       this.show();
       var loop = new MainLoop ();
       var channel = new IOChannel.unix_new(Global.C.get_file_descriptor());

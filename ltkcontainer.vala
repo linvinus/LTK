@@ -175,7 +175,9 @@ namespace Ltk{
       ltkdebug( "get_width_for_height2 min=%u max=%u",width_min,width_max);
     }//get_width_for_height
 
-    public virtual void calculate_size(ref uint calc_width,ref uint calc_height, Widget calc_initiator){
+    /* Widget? calc_initiator could be null if size request come not from another widget (for example from xcb window)
+     * */
+    public virtual void calculate_size(ref uint calc_width,ref uint calc_height, Widget? calc_initiator){
       ltkdebug( "container calculate_size min=%u,%u A=%u,%u  CALC=%u,%u loop=%d childs=%u", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,this.childs.count);
 
       if(this._calculating_size)

@@ -90,11 +90,23 @@ namespace Ltk{
       return _ret;
     }//draw
 
-    private void on_xcb_window_size_change(uint width,uint height){
-        this.size_changed_serial++;
-        this.calculate_size(ref width,ref height,this);
-        this.update_childs_position();
-//~         this.damaged=true;
+    private bool on_xcb_window_size_change(uint width,uint height){
+        if(this.A.width != width || this.A.height != height){//prevent loop if size request was from this window
+          this.size_changed_serial++;
+          uint oldw = width;
+          uint oldh = height;
+          this.calculate_size(ref width,ref height,null);
+          if(oldw == width && oldh == height){
+            this.update_childs_position();
+            return true;//size ok
+          }else{
+              this.window.resize_and_remember(width,height);
+            return false;//size not ok
+          }
+        }else{
+          this.update_childs_position();
+          return true;//size ok
+        }
     }
 
     public void damage_all(Container P){
@@ -106,19 +118,22 @@ namespace Ltk{
       }
     }
 
-    public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget calc_initiator){
-      ltkdebug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+    public override void calculate_size(ref uint calc_width,ref uint calc_height,Widget? calc_initiator){
+      ltkdebug( "window calculate_size1 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d initiator=%p", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size,calc_initiator);
       this._calculating_size=true;
       uint oldw = uint32.min(this.A.width,calc_width);
       uint oldh = uint32.min(this.A.height,calc_height);
-      base.calculate_size(ref calc_width,ref calc_height, calc_initiator);
-      ltkdebug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", this.min_width,this.min_height,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
-      if(calc_width != oldw||
-         calc_height != oldh){
-           this.window.resize_and_remember(calc_width,calc_height);
+      Widget send_calc_initiator = (calc_initiator == null ? this : calc_initiator);
+      base.calculate_size(ref calc_width,ref calc_height, send_calc_initiator);
+      ltkdebug( "window calculate_size2 min=%u,%u A=%u,%u  CALC=%u,%u loop=%d", oldw,oldh,this.A.width,this.A.height,calc_width,calc_height,(int)this._calculating_size);
+      if(calc_width != oldw ||
+         calc_height != oldh ){
            this.A.width = calc_width;
            this.A.height = calc_height;
-           this.damage_all(this);//redraw whole window
+           if( calc_initiator != null ){
+              this.window.resize_and_remember(calc_width,calc_height);
+              this.damage_all(this);//redraw whole window
+           }
       }
       this._calculating_size=false;
     }

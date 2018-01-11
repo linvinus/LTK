@@ -102,17 +102,13 @@ int main (string[] argv) {
     container2.add(button3);
     
     button3.on_click.connect(()=>{
-			ltkdebug("__________ button3.on_click");
+      ltkdebug("__________ button3.on_click");
 //~ 		    var dialog = new Ltk.Dialog(win_parent);
-		    var dialog = new Ltk.PopupMenu(win_parent);
-			dialog.place_policy = Ltk.SOptions.place_horizontal;
-			dialog.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
-			dialog.set_title("xcb_vala_dialog");
-
-			var butt = new Ltk.Button("Hello from dialog!");
-			dialog.add(butt);
-			dialog.show();
-			dialog.ref();
+      var menu = new Ltk.PopupMenu(win_parent);
+      var butt = new Ltk.Button("Hello from dialog!");
+      menu.add(butt);
+      menu.ref();
+      menu.popup();
 //~ 			dialog.run();
 
 		});

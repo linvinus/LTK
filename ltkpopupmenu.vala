@@ -21,20 +21,34 @@ namespace Ltk{
 	public class PopupMenu: Window{
 		private weak Window parent_window;
 		public PopupMenu(Window parent){
+      this.place_policy = Ltk.SOptions.place_horizontal;
+      this.fill_mask = Ltk.SOptions.fill_vertical | Ltk.SOptions.fill_horizontal;
 		  this.parent_window = parent;
       this.parent_window.get_xcb_window().on_mouse_leave(0,0);//emulate mouse leave event
 		  var win = this.get_xcb_window();
-		  win.set_type_popup_menu();
-		  win.set_transient_for(this.parent_window.get_xcb_window());
-		  ltkdebug("PopupMenu grab_pointer=%u win_id=%u",(uint)win.grab_pointer(),win.get_xcb_id());
 		  win.on_button_press.connect(this._on_button_press);
+		  win.set_type_popup_menu();
+		  win.set_transient_for(this.parent_window.get_xcb_window().get_xcb_id());
+		}
+    public void popup(){
 		  int16 x=0,
 				y=0,
 				wx=0,
 				wy=0;
-		  win.query_pointer(ref x,ref y,ref wx,ref wy);
-		  win.move_resize(x,y,this.min_width,this.min_height);
-		}
+      var win = this.get_xcb_window();
+
+      
+
+		  if(Global.query_pointer(ref x,ref y,ref wx,ref wy)){
+        ltkdebug("PopupMenu query_pointer x,y=%u,%u",x,y);
+        win.move_resize(x,y,this.A.width,this.A.height);
+      }else{
+        ltkdebug("PopupMenu query_pointer error");
+      }
+
+      this.show();
+		  ltkdebug("PopupMenu grab_pointer=%u win_id=%u",(uint)win.grab_pointer(),win.get_xcb_id());
+    }
 		private void _on_button_press(uint button,uint state,uint x, uint y){
       if(button == 1 || button == 3){
         var win = this.get_xcb_window();

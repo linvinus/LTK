@@ -118,6 +118,7 @@ namespace Ltk{
           Log.set_handler(null, LogLevelFlags.LEVEL_MASK & ~LogLevelFlags.LEVEL_ERROR, null_handler);
 
 	  try{
+		FontLoader.init();//default application font
 		Global.Font = FontLoader.load(fpath);//default application font
 	  }catch(FileError e){
 		  critical(e.message);
@@ -241,7 +242,7 @@ namespace Ltk{
 //~       Global.windows.foreach((k,v)=>{ v.window_widget.unref(); });
 //~       Global.windows.remove_all();
       //~     surface.finish();
-    FontLoader.destroy();
+//~     FontLoader.destroy(Global.Font);
 
 //~     ltkdebug("Global.C.unref");
 //~     GLib.Source.remove(Global.xcb_source);
@@ -550,5 +551,24 @@ namespace Ltk{
 //~ 		atom_names.primary
 	}
 
+    public static bool query_pointer(
+    /*ref uint8 same_screen,
+		ref Xcb.Window root,
+		ref Xcb.Window child,*/
+		ref int16 root_x,
+		ref int16 root_y,
+		ref int16 win_x,
+		ref int16 win_y
+    ){
+      var reply = Global.C.query_pointer_reply(Global.C.query_pointer(Global.screen.root));
+      if(reply != null){
+        root_x = reply.root_x;
+        root_y = reply.root_y;
+        win_x = reply.win_x;
+        win_y = reply.win_y;
+        return true;
+      }
+      return false;
+    }
   }//struct Global
 }//namespace Ltk
