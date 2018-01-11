@@ -463,8 +463,17 @@ namespace Ltk{
       this.draw(cr);
       cr.restore();
       this.surface.flush();
+      ltkdebug( "XCB **** draw_area end");
+    }//clear_area
+
+    public void flush_area(uint x,uint y,uint width,uint height){
+      if(x > this.min_width ) x = this.min_width;
+      if(y > this.min_height ) y = this.min_height;
+      if((x + width) > this.min_width ) width = this.min_width - x;
+      if((y + height) > this.min_height ) height = this.min_height - y;
+      ltkdebug( "XCB **** flush_area xy=%u,%u wh=%u,%u state=%u",x, y, width, height,this.state);
       if(this.state == WindowState.visible){
-        ltkdebug( "XCB **** draw_area pix=%u window=%u gc=%u state=%u",this.pixmap,this.window,this.pixmap_gc,this.state);
+        ltkdebug( "XCB **** flush_area do");
         Global.C.copy_area(this.pixmap,
                            this.window,
                            this.pixmap_gc,
@@ -476,7 +485,7 @@ namespace Ltk{
                            (int16)height);
       }
       Global.C.flush();
-      ltkdebug( "XCB **** end");
+      ltkdebug( "XCB **** flush_area end");
     }//clear_area
 
     public void damage(uint x,uint y,uint width,uint height){
@@ -500,6 +509,10 @@ namespace Ltk{
 
     private void do_draw(){
       this.draw_area(this.damage_region.x,
+                     this.damage_region.y,
+                     this.damage_region.width-this.damage_region.x,
+                     this.damage_region.height-this.damage_region.y );
+      this.flush_area(this.damage_region.x,
                      this.damage_region.y,
                      this.damage_region.width-this.damage_region.x,
                      this.damage_region.height-this.damage_region.y );
